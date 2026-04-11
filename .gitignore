@@ -1,0 +1,17 @@
+# 忽略所有大文件
+3rdparty/
+*.lib
+*.dll
+*.a
+*.so
+*.dylib
+*.exe
+
+# 忽略编译产物
+build/
+bin/
+debug/
+release/
+*.user
+*.pro.user
+.qmake.stash
