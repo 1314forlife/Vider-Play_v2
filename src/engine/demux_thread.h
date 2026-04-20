@@ -60,6 +60,7 @@ private:
     int m_videoStreamIndex = -1;
     int m_audioStreamIndex = -1;
 
+
     // 流参数（需要保存，因为 formatCtx 可能被关闭）
     AVCodecParameters* m_videoCodecPar = nullptr;
     AVCodecParameters* m_audioCodecPar = nullptr;

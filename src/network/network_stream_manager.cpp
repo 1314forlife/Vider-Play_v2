@@ -58,7 +58,10 @@ void NetworkStreamManager::startStream(const QString &bilibiliUrl)
     }
 
     QString command = QString(
-                          "yt-dlp --cookies \"cookies.txt\" --referer \"https://www.bilibili.com\" -f \"bestvideo[height<=720]+bestaudio/best\" -o - \"%1\" | ffmpeg -i pipe:0 -c:v libx264 -c:a aac -f mpegts tcp://127.0.0.1:%2?listen\n"
+                          "yt-dlp --cookies \"cookies.txt\" --referer \"https://www.bilibili.com\" "
+                          "-f \"bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]\" "
+                          "--merge-output-format mkv -o - \"%1\" "
+                          "| ffmpeg -i pipe:0 -c:v libx264 -preset ultrafast -c:a aac -f mpegts tcp://127.0.0.1:%2?listen"
                           ).arg(bilibiliUrl).arg(m_port);
 
     QTextStream out(&batFile);
