@@ -1,0 +1,24 @@
+# Qt 编译生成
+*.pro.user
+*.pro.user.*
+Makefile
+Makefile.*
+*.o
+*.obj
+*.exe
+*.dll
+
+# 编译输出目录
+bin/
+build-*/
+release/
+debug/
+
+# 临时文件
+*.log
+cookies.txt
+run_stream.bat
+temp_*.mp4
+
+# 第三方库（体积大，不提交）
+3rdparty/

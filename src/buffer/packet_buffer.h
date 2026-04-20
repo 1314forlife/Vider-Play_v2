@@ -1,0 +1,4 @@
+#ifndef PACKET_BUFFER_H
+#define PACKET_BUFFER_H
+
+#endif // PACKET_BUFFER_H

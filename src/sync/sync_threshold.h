@@ -1,0 +1,4 @@
+#ifndef SYNC_THRESHOLD_H
+#define SYNC_THRESHOLD_H
+
+#endif // SYNC_THRESHOLD_H

@@ -1,0 +1,179 @@
+/* ========== 全局样式 ========== */
+* {
+    font-family: "Microsoft YaHei", "Segoe UI", "PingFang SC", sans-serif;
+}
+
+QMainWindow {
+    background-color: #1a1a2e;
+}
+
+/* ========== 视频显示区域 ========== */
+QWidget#videoWidget {
+    background-color: #000000;
+    border: none;
+}
+
+/* ========== 控制栏 ========== */
+QWidget#controlBar {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(30,30,46,0.95),
+        stop:1 rgba(20,20,35,0.98));
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+/* ========== 进度条 ========== */
+QSlider::groove:horizontal {
+    height: 4px;
+    background: #2a2a3a;
+    border-radius: 2px;
+}
+
+QSlider::sub-page:horizontal {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #4a90d9,
+        stop:1 #6b5bff);
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    background: #ffffff;
+    width: 12px;
+    height: 12px;
+    margin: -4px 0;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+QSlider::handle:horizontal:hover {
+    background: #4a90d9;
+    transform: scale(1.1);
+}
+
+/* ========== 时间标签 ========== */
+QLabel#timeLabel {
+    color: #e0e0e0;
+    font-size: 12px;
+    font-family: monospace;
+    padding: 0 8px;
+}
+
+/* ========== 按钮样式 ========== */
+QPushButton {
+    background: rgba(60,60,80,0.8);
+    color: #e0e0e0;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+QPushButton:hover {
+    background: #4a90d9;
+    color: white;
+}
+
+QPushButton:pressed {
+    background: #3a70b9;
+    padding-top: 9px;
+    padding-bottom: 7px;
+}
+
+QPushButton:disabled {
+    background: rgba(60,60,80,0.4);
+    color: rgba(224,224,224,0.5);
+}
+
+/* ========== 控制栏按钮（扁平化） ========== */
+QPushButton#controlBtn {
+    background: transparent;
+    padding: 6px;
+    border-radius: 4px;
+}
+
+QPushButton#controlBtn:hover {
+    background: rgba(255,255,255,0.15);
+}
+
+/* ========== 音量滑块 ========== */
+QSlider#volumeSlider::groove:horizontal {
+    height: 3px;
+    background: #3a3a4a;
+    border-radius: 1.5px;
+}
+
+QSlider#volumeSlider::sub-page:horizontal {
+    background: #4a90d9;
+    border-radius: 1.5px;
+}
+
+QSlider#volumeSlider::handle:horizontal {
+    background: #ffffff;
+    width: 10px;
+    height: 10px;
+    margin: -3.5px 0;
+    border-radius: 5px;
+}
+
+/* ========== 工具提示 ========== */
+QToolTip {
+    background-color: #2a2a3a;
+    color: #e0e0e0;
+    border: 1px solid #4a90d9;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+/* ========== 滚动条 ========== */
+QScrollBar:vertical {
+    background: #1e1e2e;
+    width: 8px;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:vertical {
+    background: #4a90d9;
+    border-radius: 4px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #6b5bff;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+/* ========== 菜单 ========== */
+QMenu {
+    background-color: #2a2a3a;
+    border: 1px solid #3a3a4a;
+    border-radius: 6px;
+    padding: 4px 0;
+}
+
+QMenu::item {
+    padding: 6px 24px;
+    color: #e0e0e0;
+}
+
+QMenu::item:selected {
+    background-color: #4a90d9;
+}
+
+/* ========== 消息框 ========== */
+QMessageBox {
+    background-color: #1e1e2e;
+}
+
+QMessageBox QLabel {
+    color: #e0e0e0;
+}
+
+QMessageBox QPushButton {
+    min-width: 70px;
+    padding: 6px 12px;
+}

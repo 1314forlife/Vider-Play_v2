@@ -1,0 +1,4 @@
+#ifndef BUFFER_MONITOR_H
+#define BUFFER_MONITOR_H
+
+#endif // BUFFER_MONITOR_H
