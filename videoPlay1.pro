@@ -21,9 +21,12 @@ SOURCES += \
     src/plugins/video_renderer/sdl_renderer.cpp \
     src/plugins/video_decoder/video_decoder.cpp \
     src/engine/play_engine.cpp \
+    src/theme/theme_manager.cpp \
     src/ui/main_window.cpp \
+    src/ui/navigation_widget.cpp \
     src/ui/network_dialog.cpp \
     src/ui/progress_bar.cpp \
+    src/ui/title_bar.cpp \
     src/ui/video_widget.cpp \
     main.cpp
 
@@ -65,9 +68,12 @@ HEADERS += \
     src/resource/av_ptr.h \
     src/resource/resource_guard.h \
     src/resource/sdl_ptr.h \
+    src/theme/theme_manager.h \
     src/ui/main_window.h \
+    src/ui/navigation_widget.h \
     src/ui/network_dialog.h \
     src/ui/progress_bar.h \
+    src/ui/title_bar.h \
     src/ui/video_widget.h \
     src/include/stdafx.h \
     src/stdafx.h
@@ -124,7 +130,9 @@ TARGET = video_player
 QMAKE_CXXFLAGS += -Wno-unused-parameter -Wno-unused-variable
 
 DISTFILES += \
-    src/resource/style.qss
+    src/resource/style.qss \
+    src/resource/themes/default.qss \
+    src/resource/themes/furina.qss
 
 RESOURCES += \
     resources.qrc \

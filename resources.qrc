@@ -1,5 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>src/resource/style.qss</file>
+        <file>src/resource/themes/default.qss</file>
+        <file>src/resource/themes/furina.qss</file>
     </qresource>
 </RCC>

@@ -28,23 +28,9 @@ void* VideoWidget::getWindowId() const {
 void VideoWidget::setFullscreen(bool fullscreen)
 {
     if (m_fullscreen == fullscreen) return;
-
     m_fullscreen = fullscreen;
-
-    if (fullscreen) {
-        // 保存当前几何信息
-        m_normalGeometry = geometry();
-        // 进入全屏
-        setParent(nullptr);  // 暂时从父窗口脱离
-        showFullScreen();
-    } else {
-        // 退出全屏
-        setParent(parentWidget());
-        setGeometry(m_normalGeometry);
-        showNormal();
-    }
-
-    emit fullscreenChanged(m_fullscreen);  // ← 添加这一行
+    // 只发射信号，让 MainWindow 处理实际的全屏操作
+    emit fullscreenChanged(m_fullscreen);
 }
 
 

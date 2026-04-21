@@ -1,0 +1,81 @@
+/* 芙宁娜·水元素主题 */
+QMainWindow {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #0D1B2A,
+        stop:1 #1A2A3A);
+}
+
+QPushButton {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #4A90E2,
+        stop:1 #3A7BC8);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #5AA0F2,
+        stop:1 #4A90E2);
+}
+
+QPushButton:pressed {
+    background: #2E6CB8;
+}
+
+QSlider::groove:horizontal {
+    background: rgba(126, 200, 227, 0.2);
+    height: 4px;
+    border-radius: 2px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #4A90E2;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    background: #F5D6A2;
+    width: 12px;
+    height: 12px;
+    border-radius: 6px;
+    margin: -4px 0;
+}
+
+QLabel {
+    color: #7EC8E3;
+}
+
+/* 导航栏样式 - 添加到 furina.qss 末尾 */
+#navWidget {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #0D1B2A,
+        stop:1 #1A2A3A);
+    border-right: 1px solid rgba(74, 144, 226, 0.2);
+}
+
+#navBtn {
+    background: transparent;
+    border: none;
+    border-radius: 16px;
+    padding: 12px 0;
+    margin: 4px 8px;
+    color: #7EC8E3;
+    font-size: 12px;
+    font-family: "Microsoft YaHei";
+}
+
+#navBtn:hover {
+    background: rgba(74, 144, 226, 0.15);
+    color: #E8F4FD;
+}
+
+#navBtn:checked {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #4A90E2,
+        stop:1 #7EC8E3);
+    color: white;
+}
