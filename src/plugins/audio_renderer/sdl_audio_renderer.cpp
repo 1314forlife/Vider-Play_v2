@@ -142,6 +142,19 @@ void SDLAudioRenderer::fillAudioData(Uint8* stream, int len) {
                 int dataSize = frame.samples() * frame.channels() * 2;
                 int copySize = (dataSize < len) ? dataSize : len;
                 memcpy(stream, audioData[0], copySize);
+
+                // ========== 新增：应用音量 ==========
+                if (m_volume != 100) {
+                    // 音频格式是 S16 (16位有符号整数)
+                    int16_t* samples = reinterpret_cast<int16_t*>(stream);
+                    int sampleCount = copySize / 2;  // 16位 = 2字节
+                    float volumeScale = m_volume / 100.0f;
+
+                    for (int i = 0; i < sampleCount; i++) {
+                        samples[i] = static_cast<int16_t>(samples[i] * volumeScale);
+                    }
+                }
+                //====================
             }
         }
     }

@@ -334,6 +334,20 @@ void PlayEngine::seek(int64_t position) {
     }
 }
 
+void PlayEngine::setVolume(int volume)
+{
+    m_volume = qBound(0, volume, 100);
+    if (m_audioRenderer) {
+        m_audioRenderer->setVolume(m_volume);
+    }
+    LOG_INFO("PlayEngine", QString("设置音量: %1").arg(m_volume));
+}
+
+int PlayEngine::volume() const
+{
+    return m_volume;
+}
+
 void PlayEngine::onRenderTimer() {
     if (m_state != PlaybackState::Playing) return;
     if (!m_renderer) return;

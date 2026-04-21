@@ -30,7 +30,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
             this, &MainWindow::onSliderPressed);
     connect(m_progressBar, &ProgressBar::sliderReleased,
             this, &MainWindow::onSliderReleased);
-
+    connect(m_videoWidget, &VideoWidget::fullscreenChanged,
+            this, &MainWindow::onFullscreenChanged);
     resize(900, 600);
     setWindowTitle("视频播放器");
 
@@ -102,7 +103,20 @@ void MainWindow::setupUI() {
 
     controlLayout->addStretch();
 
-    mainLayout->addWidget(controlBar);
+    // ========== 音量控件（添加到 controlLayout 里）==========
+    QLabel* volumeLabel = new QLabel("音量", this);
+    controlLayout->addWidget(volumeLabel);
+
+    m_volumeSlider = new QSlider(Qt::Horizontal, this);
+    m_volumeSlider->setRange(0, 100);
+    m_volumeSlider->setValue(100);
+    m_volumeSlider->setFixedWidth(80);
+    controlLayout->addWidget(m_volumeSlider);
+
+    connect(m_volumeSlider, &QSlider::valueChanged, this, &MainWindow::onVolumeChanged);
+    // ========================================================
+
+    mainLayout->addWidget(controlBar);  // 只添加一次，不要重复
 }
 
 void MainWindow::setupConnections() {
@@ -241,6 +255,24 @@ void MainWindow::onNetworkPlay()
 
     dialog.exec();
 }
+
+void MainWindow::onFullscreenChanged(bool fullscreen)
+{
+    if (fullscreen) {
+        showFullScreen();
+    } else {
+        showNormal();
+    }
+}
+
+void MainWindow::onVolumeChanged(int volume)
+{
+    if (m_engine) {
+        m_engine->setVolume(volume);
+    }
+}
+
+
 void MainWindow::resizeEvent(QResizeEvent* event) {
     QMainWindow::resizeEvent(event);
 

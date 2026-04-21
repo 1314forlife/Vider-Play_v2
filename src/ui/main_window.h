@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QPushButton>
 #include <QTimer>
+#include <QSlider>
 #include <memory>
 #include "src/engine/playback_state.h"
 
@@ -33,6 +34,9 @@ private slots:
     void onSliderPressed();   // 🔥 添加
     void onSliderReleased();  // 🔥 添加
     void onNetworkPlay();
+    void onFullscreenChanged(bool fullscreen);
+    void onVolumeChanged(int volume);
+
 
 private:
     void setupUI();
@@ -44,6 +48,7 @@ private:
     ProgressBar* m_progressBar = nullptr;
     QPushButton* m_playPauseBtn = nullptr;
     QPushButton* m_stopBtn = nullptr;
+    QSlider* m_volumeSlider = nullptr;
 
     PlayEngine* m_engine = nullptr;
     bool m_isSeeking = false;  // 🔥 添加

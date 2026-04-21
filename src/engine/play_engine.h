@@ -34,6 +34,9 @@ public:
     void stop();
     void seek(int64_t position);
 
+    void setVolume(int volume);  // 0-100
+    int volume() const;
+
     PlaybackState state() const { return m_state; }
     bool isPlaying() const { return m_state == PlaybackState::Playing; }
     bool isPaused() const { return m_state == PlaybackState::Paused; }
@@ -115,6 +118,8 @@ private:
     int m_videoDecodeCount = 0;
     int m_audioDecodeCount = 0;
     int64_t m_currentPts = 0;
+
+    int m_volume = 100;
 
     // 注册表
     QMap<QString, std::function<std::unique_ptr<VideoDecoder>()>> m_videoDecoderFactories;
