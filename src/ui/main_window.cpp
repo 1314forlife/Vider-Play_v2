@@ -2,17 +2,18 @@
 #include "src/ui/video_widget.h"
 #include "src/ui/title_bar.h"
 #include "src/ui/navigation_widget.h"
+#include "src/ui/download_widget.h"
 #include "src/engine/play_engine.h"
 #include "src/common/logger.h"
 #include "src/ui/progress_bar.h"
 #include "src/theme/theme_manager.h"
+#include "src/ui/furina_lottie.h"
 #include "network_dialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QResizeEvent>
-#include <QMenuBar>
 #include <QLabel>
 #include <QSlider>
 
@@ -46,7 +47,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUI()
 {
-    // 设置无边框窗口（必须在创建控件之前）
+    // 设置无边框窗口
     setWindowFlags(Qt::FramelessWindowHint);
 
     // 创建中央控件
@@ -94,8 +95,6 @@ void MainWindow::setupConnections()
     connect(m_navigation, &NavigationWidget::downloadClicked, this, &MainWindow::switchToDownload);
     connect(m_navigation, &NavigationWidget::themeClicked, this, &MainWindow::switchToTheme);
     connect(m_navigation, &NavigationWidget::settingsClicked, this, &MainWindow::switchToSettings);
-
-    // 播放器控件信号（在 createPlayerPage 中连接）
 }
 
 QWidget* MainWindow::createPlayerPage()
@@ -183,6 +182,18 @@ QWidget* MainWindow::createPlayerPage()
     // 连接全屏信号
     connect(m_videoWidget, &VideoWidget::fullscreenChanged, this, &MainWindow::onFullscreenChanged);
 
+    // 创建芙宁娜动画悬浮层
+    m_furinaLottie = new FurinaLottie(m_videoWidget);
+    m_furinaLottie->resize(m_videoWidget->size());
+    m_furinaLottie->showGoddess();
+
+    // 监听视频控件大小变化
+    connect(m_videoWidget, &VideoWidget::resized, [this]() {
+        if (m_furinaLottie) {
+            m_furinaLottie->setGeometry(m_videoWidget->geometry());
+        }
+    });
+
     return page;
 }
 
@@ -190,12 +201,11 @@ QWidget* MainWindow::createDownloadPage()
 {
     QWidget* page = new QWidget(this);
     QVBoxLayout* layout = new QVBoxLayout(page);
+    layout->setContentsMargins(0, 0, 0, 0);
 
-    QLabel* label = new QLabel("📥 下载管理\n\n开发中，敬请期待...", page);
-    label->setAlignment(Qt::AlignCenter);
-    label->setStyleSheet("color: #7EC8E3; font-size: 16px;");
+    m_downloadWidget = new DownloadWidget(page);
+    layout->addWidget(m_downloadWidget);
 
-    layout->addWidget(label);
     return page;
 }
 
@@ -230,24 +240,36 @@ void MainWindow::switchToPlayer()
 {
     m_centralStack->setCurrentIndex(0);
     m_navigation->setActiveButton(0);
+    if (m_furinaLottie) {
+        m_furinaLottie->showGoddess();
+    }
 }
 
 void MainWindow::switchToDownload()
 {
     m_centralStack->setCurrentIndex(1);
     m_navigation->setActiveButton(1);
+    if (m_furinaLottie) {
+        m_furinaLottie->setOpacity(0.5);
+    }
 }
 
 void MainWindow::switchToTheme()
 {
     m_centralStack->setCurrentIndex(2);
     m_navigation->setActiveButton(2);
+    if (m_furinaLottie) {
+        m_furinaLottie->setOpacity(1.0);
+    }
 }
 
 void MainWindow::switchToSettings()
 {
     m_centralStack->setCurrentIndex(3);
     m_navigation->setActiveButton(3);
+    if (m_furinaLottie) {
+        m_furinaLottie->setOpacity(0.3);
+    }
 }
 
 // ========== 窗口控制 ==========
@@ -260,7 +282,7 @@ void MainWindow::toggleMaximize()
     }
 }
 
-// ========== 以下是你原有的播放器功能，保持不变 ==========
+// ========== 播放器功能 ==========
 
 void MainWindow::onOpenFile()
 {
@@ -288,6 +310,11 @@ void MainWindow::onOpenFile()
         m_stopBtn->setEnabled(true);
         m_playPauseBtn->setText("暂停");
         LOG_INFO("MainWindow", "播放开始");
+
+        // 播放时降低芙宁娜透明度
+        if (m_furinaLottie) {
+            m_furinaLottie->setOpacity(0.3);
+        }
     } else {
         QMessageBox::warning(this, "错误", "无法打开视频文件");
     }
@@ -300,10 +327,16 @@ void MainWindow::onPlayPause()
     if (m_engine->isPlaying()) {
         m_engine->pause();
         m_playPauseBtn->setText("播放");
+        if (m_furinaLottie) {
+            m_furinaLottie->setOpacity(0.7);
+        }
         LOG_INFO("MainWindow", "暂停");
     } else if (m_engine->isPaused()) {
         m_engine->play();
         m_playPauseBtn->setText("暂停");
+        if (m_furinaLottie) {
+            m_furinaLottie->setOpacity(0.3);
+        }
         LOG_INFO("MainWindow", "恢复播放");
     }
 }
@@ -315,6 +348,9 @@ void MainWindow::onStop()
         m_playPauseBtn->setText("播放");
         m_playPauseBtn->setEnabled(false);
         m_stopBtn->setEnabled(false);
+        if (m_furinaLottie) {
+            m_furinaLottie->setOpacity(1.0);
+        }
         LOG_INFO("MainWindow", "停止");
     }
 }
@@ -331,6 +367,9 @@ void MainWindow::onSeekRequested(int64_t position)
     if (m_engine) {
         LOG_INFO("MainWindow", QString("Seek 到: %1 ms").arg(position / 1000));
         m_engine->seek(position);
+        if (m_furinaLottie) {
+            m_furinaLottie->triggerSplash();
+        }
     }
 }
 
@@ -360,7 +399,11 @@ void MainWindow::onNetworkPlay()
 {
     NetworkDialog dialog(this);
 
-    connect(&dialog, &NetworkDialog::urlReady, this, [this](const QString& url) {
+    // 使用 exec() 同步等待，但内部信号会在准备好后 accept()
+    if (dialog.exec() == QDialog::Accepted) {
+        QString url = dialog.getUrl();
+        if (url.isEmpty()) return;
+
         m_engine->stop();
         void* winId = m_videoWidget->getWindowId();
         m_engine->setRenderWindow(winId);
@@ -373,34 +416,35 @@ void MainWindow::onNetworkPlay()
                 m_playPauseBtn->setEnabled(true);
                 m_stopBtn->setEnabled(true);
             });
+            if (m_furinaLottie) {
+                m_furinaLottie->setOpacity(0.3);
+            }
         } else {
             QMessageBox::warning(this, "错误", "无法播放该链接");
         }
-    });
-
-    dialog.exec();
+    }
 }
 
 void MainWindow::onFullscreenChanged(bool fullscreen)
 {
     if (fullscreen) {
-        // 进入全屏前保存当前窗口状态
         if (!isFullScreen()) {
             m_normalGeometry = geometry();
         }
-        // 隐藏标题栏和导航栏
         m_titleBar->hide();
         m_navigation->hide();
-        // 主窗口全屏
         showFullScreen();
+        if (m_furinaLottie) {
+            m_furinaLottie->setOpacity(0.15);
+        }
     } else {
-        // 退出全屏时恢复显示标题栏和导航栏
         m_titleBar->show();
         m_navigation->show();
-        // 主窗口恢复正常
         showNormal();
-        // 恢复之前保存的窗口位置和大小
         setGeometry(m_normalGeometry);
+        if (m_furinaLottie) {
+            m_furinaLottie->setOpacity(0.3);
+        }
     }
 }
 
@@ -421,13 +465,10 @@ void MainWindow::resizeEvent(QResizeEvent* event)
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
-    // 如果正在全屏，先退出全屏
     if (isFullScreen()) {
         onFullscreenChanged(false);
     }
-
     event->accept();
-
     if (m_engine) {
         QTimer::singleShot(0, this, [this]() {
             m_engine->stop();

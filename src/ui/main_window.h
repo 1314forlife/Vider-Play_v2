@@ -8,12 +8,14 @@
 #include <memory>
 #include <QSlider>
 #include "src/engine/playback_state.h"
+#include "src/ui/download_widget.h"
 
 class PlayEngine;
 class VideoWidget;
 class ProgressBar;
 class TitleBar;
 class NavigationWidget;
+class FurinaLottie;
 enum class PlaybackState;
 
 class MainWindow : public QMainWindow {
@@ -62,6 +64,8 @@ private:
     QWidget* createThemePage();
     QWidget* createSettingsPage();
 
+    DownloadWidget* m_downloadWidget = nullptr;
+
     // UI 组件
     TitleBar* m_titleBar = nullptr;
     NavigationWidget* m_navigation = nullptr;
@@ -79,6 +83,9 @@ private:
     bool m_isSeeking = false;
 
     QRect m_normalGeometry;  // 保存正常窗口的位置和大小
+
+    FurinaLottie* m_furinaLottie = nullptr;
+    QPushButton* m_wallpaperBtn = nullptr;
 };
 
 #endif

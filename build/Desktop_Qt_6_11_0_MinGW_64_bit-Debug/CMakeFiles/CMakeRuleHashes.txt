@@ -1,0 +1,4 @@
+# Hashes of file build rules.
+7e3b76afc9639b606d5d35280bbb1ce1 CMakeFiles/VideoPlayer_autogen
+10ba77065bcdf7115b205779bdcdf4e6 VideoPlayer_autogen/EWIEGA46WW/qrc_resources.cpp
+985a15299aeb0d7d19eacbe4e46444fc VideoPlayer_autogen/timestamp

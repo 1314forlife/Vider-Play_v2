@@ -16,6 +16,8 @@ public:
     explicit NetworkDialog(QWidget* parent = nullptr);
     ~NetworkDialog();
 
+    QString getUrl() const { return m_url; }
+
 signals:
     void urlReady(const QString& url);
 
@@ -31,6 +33,7 @@ private:
     QPushButton* m_cancelBtn;
     QLabel* m_statusLabel;
     QProgressBar* m_progressBar;
+    QString m_url;
     NetworkStreamManager* m_streamMgr;  // 改为这个类型
 };
 

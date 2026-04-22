@@ -1,4 +1,4 @@
-QT += widgets
+QT += core gui widgets lottie
 
 CONFIG += c++17
 CONFIG += warn_off
@@ -22,6 +22,7 @@ SOURCES += \
     src/plugins/video_decoder/video_decoder.cpp \
     src/engine/play_engine.cpp \
     src/theme/theme_manager.cpp \
+    src/ui/furina_lottie.cpp \
     src/ui/main_window.cpp \
     src/ui/navigation_widget.cpp \
     src/ui/network_dialog.cpp \
@@ -69,6 +70,7 @@ HEADERS += \
     src/resource/resource_guard.h \
     src/resource/sdl_ptr.h \
     src/theme/theme_manager.h \
+    src/ui/furina_lottie.h \
     src/ui/main_window.h \
     src/ui/navigation_widget.h \
     src/ui/network_dialog.h \

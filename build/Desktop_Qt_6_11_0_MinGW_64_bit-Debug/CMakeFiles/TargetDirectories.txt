@@ -1,0 +1,5 @@
+C:/my-github-project/02.1-videoPlay/videoPlay/build/Desktop_Qt_6_11_0_MinGW_64_bit-Debug/CMakeFiles/VideoPlayer.dir
+C:/my-github-project/02.1-videoPlay/videoPlay/build/Desktop_Qt_6_11_0_MinGW_64_bit-Debug/CMakeFiles/edit_cache.dir
+C:/my-github-project/02.1-videoPlay/videoPlay/build/Desktop_Qt_6_11_0_MinGW_64_bit-Debug/CMakeFiles/rebuild_cache.dir
+C:/my-github-project/02.1-videoPlay/videoPlay/build/Desktop_Qt_6_11_0_MinGW_64_bit-Debug/CMakeFiles/VideoPlayer_autogen_timestamp_deps.dir
+C:/my-github-project/02.1-videoPlay/videoPlay/build/Desktop_Qt_6_11_0_MinGW_64_bit-Debug/CMakeFiles/VideoPlayer_autogen.dir

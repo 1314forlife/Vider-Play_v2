@@ -27,6 +27,7 @@ protected:
 signals:
     void sigSizeChanged(int width, int height);
     void fullscreenChanged(bool fullscreen);
+    void resized();
 
 private:
     bool m_nativeWindow = false;

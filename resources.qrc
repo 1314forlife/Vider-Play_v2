@@ -3,5 +3,21 @@
         <file>src/resource/style.qss</file>
         <file>src/resource/themes/default.qss</file>
         <file>src/resource/themes/furina.qss</file>
+        <file>src/resource/furina_512.png</file>
+        <file>src/resource/layers/back_hair.png</file>
+        <file>src/resource/layers/ears.png</file>
+        <file>src/resource/layers/eyebrow.png</file>
+        <file>src/resource/layers/eyelash.png</file>
+        <file>src/resource/layers/eyewhite.png</file>
+        <file>src/resource/layers/face.png</file>
+        <file>src/resource/layers/front_hair.png</file>
+        <file>src/resource/layers/handwear.png</file>
+        <file>src/resource/layers/irides.png</file>
+        <file>src/resource/layers/legwear.png</file>
+        <file>src/resource/layers/mouth.png</file>
+        <file>src/resource/layers/neck.png</file>
+        <file>src/resource/layers/nose.png</file>
+        <file>src/resource/layers/topwear.png</file>
+        <file>src/resource/layers/background.png</file>
     </qresource>
 </RCC>

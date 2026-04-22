@@ -42,7 +42,7 @@ bool VideoWidget::isFullscreen() const
 
 void VideoWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
-
+    emit resized();
     // 通知大小改变
     emit sigSizeChanged(event->size().width(), event->size().height());
 }
@@ -61,3 +61,4 @@ void VideoWidget::mouseDoubleClickEvent(QMouseEvent *event)
     }
     QWidget::mouseDoubleClickEvent(event);
 }
+
