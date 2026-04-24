@@ -1,5 +1,0 @@
-C:/my-github-project/02.1-videoPlay/videoPlay/build/CMakeFiles/VideoPlayer.dir
-C:/my-github-project/02.1-videoPlay/videoPlay/build/CMakeFiles/edit_cache.dir
-C:/my-github-project/02.1-videoPlay/videoPlay/build/CMakeFiles/rebuild_cache.dir
-C:/my-github-project/02.1-videoPlay/videoPlay/build/CMakeFiles/VideoPlayer_autogen_timestamp_deps.dir
-C:/my-github-project/02.1-videoPlay/videoPlay/build/CMakeFiles/VideoPlayer_autogen.dir

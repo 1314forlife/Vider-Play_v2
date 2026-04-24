@@ -115,7 +115,9 @@ qt6_add_executable(VideoPlayer ${SOURCES} ${HEADERS} ${RESOURCES}
     src/download/SimpleDownloader.cpp
     src/download/SimpleDownloader.h
     src/download/download_manager_v2.h
-    src/download/download_manager_v2.cpp)
+    src/download/download_manager_v2.cpp
+    src/network/rtmp_streamer.h
+    src/network/rtmp_streamer.cpp)
 
 target_link_libraries(VideoPlayer PRIVATE
     Qt6::Core
