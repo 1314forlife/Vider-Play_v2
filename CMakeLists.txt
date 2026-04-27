@@ -21,14 +21,17 @@ find_package(Qt6 REQUIRED
     Network
 )
 
+# ========== 第三方库路径 ==========
 set(FFMPEG_DIR ${CMAKE_SOURCE_DIR}/3rdparty/ffmpeg)
 set(SDL2_DIR ${CMAKE_SOURCE_DIR}/3rdparty/sdl2)
+set(SQLITE3_DIR ${CMAKE_SOURCE_DIR}/3rdparty/sqlite3)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src
     ${FFMPEG_DIR}/include
     ${SDL2_DIR}/include
+    ${SQLITE3_DIR}/include          # ✅ SQLite 头文件路径
 )
 
 link_directories(
@@ -57,6 +60,10 @@ set(SOURCES
     src/ui/progress_bar.cpp
     src/ui/title_bar.cpp
     src/ui/video_widget.cpp
+    src/ui/download_widget.cpp
+    src/download/download_manager.cpp
+    src/download/download_manager_v2.cpp
+    src/download/SimpleDownloader.cpp
     main.cpp
 )
 
@@ -98,26 +105,21 @@ set(HEADERS
     src/ui/video_widget.h
     src/include/stdafx.h
     src/stdafx.h
+    src/ui/download_widget.h
+    src/download/download_manager.h
+    src/download/download_manager_v2.h
+    src/download/download_task.h
+    src/download/SimpleDownloader.h
 )
 
-# ========== 资源文件（恢复） ==========
 set(RESOURCES
     resources.qrc
 )
 
 # ========== 可执行文件 ==========
 qt6_add_executable(VideoPlayer ${SOURCES} ${HEADERS} ${RESOURCES}
-    src/download/download_task.h
-    src/download/download_manager.h
-    src/download/download_manager.cpp
-    src/ui/download_widget.h
-    src/ui/download_widget.cpp
-    src/download/SimpleDownloader.cpp
-    src/download/SimpleDownloader.h
-    src/download/download_manager_v2.h
-    src/download/download_manager_v2.cpp
-    src/network/rtmp_streamer.h
-    src/network/rtmp_streamer.cpp)
+    src/download/download_history.h
+    src/download/download_history.cpp)
 
 target_link_libraries(VideoPlayer PRIVATE
     Qt6::Core
@@ -134,6 +136,7 @@ target_link_libraries(VideoPlayer PRIVATE
     dwrite
     dwmapi
     winpthread
+    ${SQLITE3_DIR}/lib/libsqlite3.dll.a   # ✅ SQLite 导入库
 )
 
 set_target_properties(VideoPlayer PROPERTIES
@@ -144,5 +147,11 @@ target_compile_options(VideoPlayer PRIVATE
     -Wno-unused-parameter
     -Wno-unused-variable
 )
+
+# 拷贝 sqlite3.dll 到 exe 目录
+add_custom_command(TARGET VideoPlayer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${SQLITE3_DIR}/bin/sqlite3.dll
+        $<TARGET_FILE_DIR:VideoPlayer>)
 
 file(COPY ${CMAKE_SOURCE_DIR}/src/resource/ DESTINATION ${CMAKE_SOURCE_DIR}/bin/resource/)
