@@ -57,6 +57,9 @@ private:
     bool m_busy;
 
     int m_nextTaskId;
+
+    qint64 m_pausedSize;      // 暂停时已下载的字节数
+    bool m_isPaused;          // 是否处于暂停状态
 };
 
 #endif // DOWNLOAD_MANAGER_V2_H

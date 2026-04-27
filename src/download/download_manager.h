@@ -9,6 +9,7 @@
 #include <QList>
 #include "download_task.h"
 
+
 class DownloadManager : public QObject
 {
     Q_OBJECT

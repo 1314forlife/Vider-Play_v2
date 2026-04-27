@@ -49,6 +49,8 @@ private slots:
     void onTaskProgressV2(int taskId, int percent);
     void onTaskFinishedV2(int taskId, bool success, const QString& errorMsg);
 
+    void onHistoryContextMenu(const QPoint& pos);
+
 private:
     struct TaskWidgets {
         int taskId = -1;
@@ -80,6 +82,13 @@ private:
     QLabel* m_summaryLabel;
     QMap<int, TaskWidgets*> m_taskWidgets;
     int m_currentTaskId = -1;  // 右键菜单选中的任务
+    void loadHistory();
+    void setupHistoryContextMenu();
+    void deleteSelectedHistory();
+    void clearAllHistory();
+    QListWidget* m_historyList;
+
+
 };
 
 #endif // DOWNLOAD_WIDGET_H

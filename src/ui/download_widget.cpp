@@ -10,6 +10,7 @@
 #include <QMenu>
 #include <QStandardPaths>
 #include "src/common/logger.h"
+#include "src/download/download_history.h"
 
 
 DownloadWidget::DownloadWidget(QWidget* parent)
@@ -92,6 +93,19 @@ DownloadWidget::DownloadWidget(QWidget* parent)
     connect(m_downloadManager, &DownloadManagerV2::taskFinished,
             this, &DownloadWidget::onTaskFinishedV2);
 
+    // ✅ 添加标题
+    QLabel* historyTitle = new QLabel("📋 下载历史", this);
+    historyTitle->setStyleSheet("color: #7EC8E3; font-weight: bold; margin-top: 10px;");
+    mainLayout->addWidget(historyTitle);
+
+    // ✅ 加载历史记录
+    m_historyList = new QListWidget(this);
+    m_historyList->setObjectName("historyList");
+    m_historyList->setMaximumHeight(200);
+    mainLayout->addWidget(m_historyList);
+
+    loadHistory();
+    setupHistoryContextMenu();
 }
 
 DownloadWidget::~DownloadWidget()
@@ -459,35 +473,81 @@ void DownloadWidget::removeTaskWidget(int taskId)
 
 void DownloadWidget::updateSummary()
 {
-    DownloadManager& dm = DownloadManager::instance();
-    int total = 0;
+    int total = m_taskWidgetsV2.size();
     int downloading = 0;
     int paused = 0;
     int completed = 0;
     int error = 0;
 
-    for (const auto& task : dm.getTasks()) {
-        total++;
-        switch (task.status) {
-        case 1: downloading++; break;
-        case 2: paused++; break;
-        case 3: completed++; break;
-        case 4: error++; break;
-        }
+    for (auto* tw : m_taskWidgetsV2) {
+        QString status = tw->statusLabel->text();
+        if (status.contains("下载中")) downloading++;
+        else if (status.contains("暂停")) paused++;
+        else if (status.contains("完成")) completed++;
+        else if (status.contains("失败")) error++;
     }
 
     QString summary = QString("总计: %1 | 下载中: %2 | 暂停: %3 | 已完成: %4")
                           .arg(total).arg(downloading).arg(paused).arg(completed);
-
-    if (error > 0) {
-        summary += QString(" | 错误: %1").arg(error);
-    }
+    if (error > 0) summary += QString(" | 错误: %1").arg(error);
 
     if (m_summaryLabel) {
         m_summaryLabel->setText(summary);
     }
+}
 
-    LOG_DEBUG("DownloadWidget", "Summary updated: " + summary);
+void DownloadWidget::loadHistory()
+{
+    qDebug() << "=== loadHistory() called, m_historyList=" << m_historyList;
+    if (!m_historyList) {
+        qDebug() << "ERROR: m_historyList is null!";
+        return;
+    }
+
+    auto records = DownloadHistory::instance().getAllRecords();
+    qDebug() << "Records to display:" << records.size();
+
+    m_historyList->clear();
+    for (const auto& rec : records) {
+        QListWidgetItem* item = new QListWidgetItem();
+        QString text = QString("%1 | %2")
+                           .arg(rec.fileName)
+                           .arg(rec.finishTime.toString("yyyy-MM-dd hh:mm:ss"));
+        item->setText(text);
+        m_historyList->addItem(item);
+        qDebug() << "  Added:" << text;
+    }
+
+
+}
+
+void DownloadWidget::setupHistoryContextMenu()
+{
+    if (!m_historyList) return;
+
+    m_historyList->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_historyList, &QListWidget::customContextMenuRequested,
+            this, &DownloadWidget::onHistoryContextMenu);
+}
+
+void DownloadWidget::deleteSelectedHistory()
+{
+    QListWidgetItem* item = m_historyList->currentItem();
+    if (!item) return;
+
+    int recordId = item->data(Qt::UserRole).toInt();
+    DownloadHistory::instance().removeRecord(recordId);
+    delete item;
+    m_historyList->repaint();
+}
+
+void DownloadWidget::clearAllHistory()
+{
+    if (QMessageBox::question(this, "清空历史", "确定删除所有历史记录？") != QMessageBox::Yes)
+        return;
+
+    DownloadHistory::instance().clearHistory();
+    loadHistory();  // 重新加载（列表为空）
 }
 
 void DownloadWidget::showContextMenu(const QPoint& pos)
@@ -650,13 +710,11 @@ void DownloadWidget::onTaskAddedV2(int taskId)
 {
     qDebug() << "UI: Creating widget for task" << taskId;
 
-    // 检查是否已存在
     if (m_taskWidgetsV2.contains(taskId)) {
         qDebug() << "Task already exists:" << taskId;
         return;
     }
 
-    // 创建任务控件
     TaskWidgets* tw = new TaskWidgets();
     tw->taskId = taskId;
 
@@ -676,7 +734,7 @@ void DownloadWidget::onTaskAddedV2(int taskId)
     tw->nameLabel->setObjectName("taskName");
     infoLayout->addWidget(tw->nameLabel);
 
-    tw->infoLabel = new QLabel("下载中...");
+    tw->infoLabel = new QLabel("等待中");
     tw->infoLabel->setObjectName("taskInfo");
     infoLayout->addWidget(tw->infoLabel);
     layout->addLayout(infoLayout, 2);
@@ -698,14 +756,26 @@ void DownloadWidget::onTaskAddedV2(int taskId)
     QVBoxLayout* btnLayout = new QVBoxLayout();
     tw->controlBtn = new QPushButton("暂停");
     tw->controlBtn->setFixedSize(60, 28);
+
+    // ✅ 暂停 / 恢复功能
+    connect(tw->controlBtn, &QPushButton::clicked, [this, taskId, tw]() {
+        DownloadManagerV2* mgr = m_downloadManager;
+        if (tw->controlBtn->text() == "暂停") {
+            mgr->pauseTask(taskId);
+            tw->controlBtn->setText("恢复");
+        } else {
+            mgr->resumeTask(taskId);
+            tw->controlBtn->setText("暂停");
+        }
+    });
+
     tw->removeBtn = new QPushButton("删除");
     tw->removeBtn->setFixedSize(60, 28);
     btnLayout->addWidget(tw->controlBtn);
     btnLayout->addWidget(tw->removeBtn);
     layout->addLayout(btnLayout);
 
-    // 连接按钮信号（需要从 manager 获取任务信息）
-    // 删除时让用户选择
+    // 删除按钮逻辑
     connect(tw->removeBtn, &QPushButton::clicked, [this, taskId]() {
         QMessageBox::StandardButton reply = QMessageBox::question(
             this, "确认删除", "是否同时删除已下载的文件？",
@@ -713,14 +783,13 @@ void DownloadWidget::onTaskAddedV2(int taskId)
             );
 
         if (reply == QMessageBox::Yes) {
-            m_downloadManager->removeTask(taskId, true);   // 删除文件
+            m_downloadManager->removeTask(taskId, true);
         } else if (reply == QMessageBox::No) {
-            m_downloadManager->removeTask(taskId, false);  // 只删任务
+            m_downloadManager->removeTask(taskId, false);
         } else {
             return;
         }
 
-        // 从 UI 移除
         if (m_taskWidgetsV2.contains(taskId)) {
             delete m_taskWidgetsV2[taskId]->item;
             m_taskWidgetsV2[taskId]->widget->deleteLater();
@@ -729,12 +798,11 @@ void DownloadWidget::onTaskAddedV2(int taskId)
         }
     });
 
-    // 添加到列表
     m_taskList->addItem(tw->item);
     m_taskList->setItemWidget(tw->item, tw->widget);
-
     m_taskWidgetsV2[taskId] = tw;
 }
+
 void DownloadWidget::onTaskProgressV2(int taskId, int percent)
 {
     if (!m_taskWidgetsV2.contains(taskId)) return;
@@ -751,7 +819,7 @@ void DownloadWidget::onTaskProgressV2(int taskId, int percent)
     if (tw->statusLabel && percent < 100) {
         tw->statusLabel->setText(QString("下载中 %1%").arg(percent));
     }
-
+    updateSummary();
     // 更新信息标签（可以显示速度，暂时先显示百分比）
     // if (tw->infoLabel && percent < 100) {
     //     tw->infoLabel->setText(QString("下载进度: %1%").arg(percent));
@@ -772,7 +840,6 @@ void DownloadWidget::onTaskFinishedV2(int taskId, bool success, const QString& e
             tw->statusLabel->setText("✅ 完成");
         }
         if (tw->infoLabel) {
-            // 下载完成，只显示完成，不显示速度
             tw->infoLabel->setText("下载完成");
         }
         if (tw->progressBar) {
@@ -782,6 +849,19 @@ void DownloadWidget::onTaskFinishedV2(int taskId, bool success, const QString& e
             tw->controlBtn->setText("完成");
             tw->controlBtn->setEnabled(false);
         }
+
+        // ✅ 直接添加新记录到历史列表（不重新加载全部）
+        auto records = DownloadHistory::instance().getAllRecords();
+        if (!records.isEmpty()) {
+            const auto& rec = records.first();
+            QListWidgetItem* item = new QListWidgetItem();
+            QString text = QString("%1 | %2")
+                               .arg(rec.fileName)
+                               .arg(rec.finishTime.toString("yyyy-MM-dd hh:mm:ss"));
+            item->setText(text);
+            m_historyList->insertItem(0, item);  // 插入到最上面
+        }
+
         qDebug() << "Task" << taskId << "succeeded!";
     } else {
         if (tw->statusLabel) {
@@ -792,9 +872,32 @@ void DownloadWidget::onTaskFinishedV2(int taskId, bool success, const QString& e
         }
         if (tw->controlBtn) {
             tw->controlBtn->setText("重试");
+            // 重试逻辑
+            connect(tw->controlBtn, &QPushButton::clicked, [this, taskId]() {
+                m_downloadManager->addDownload("", ""); // 需要重新添加任务
+            });
         }
         qDebug() << "Task" << taskId << "failed:" << errorMsg;
     }
+    updateSummary();
 }
 
+void DownloadWidget::onHistoryContextMenu(const QPoint& pos)
+{
+    if (!m_historyList) return;
 
+    QListWidgetItem* item = m_historyList->itemAt(pos);
+    QMenu menu(this);
+
+    if (item) {
+        int recordId = item->data(Qt::UserRole).toInt();
+        menu.addAction("删除此记录", [this, recordId, item]() {
+            DownloadHistory::instance().removeRecord(recordId);
+            delete item;
+        });
+        menu.addSeparator();
+    }
+
+    menu.addAction("清空所有历史", this, &DownloadWidget::clearAllHistory);
+    menu.exec(m_historyList->mapToGlobal(pos));
+}
