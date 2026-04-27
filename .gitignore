@@ -13,6 +13,7 @@ bin/
 build-*/
 release/
 debug/
+build/
 
 # 临时文件
 *.log
@@ -20,5 +21,6 @@ cookies.txt
 run_stream.bat
 temp_*.mp4
 
-# 第三方库（体积大，不提交）
-3rdparty/
+# IDE 配置
+*.user
+.qtcreator/
