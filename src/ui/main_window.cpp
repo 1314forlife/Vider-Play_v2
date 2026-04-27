@@ -282,6 +282,40 @@ void MainWindow::toggleMaximize()
     }
 }
 
+void MainWindow::onStreamReady(const QString& streamUrl)
+{
+    m_engine->stop();
+    void* winId = m_videoWidget->getWindowId();
+    m_engine->setRenderWindow(winId);
+    if (m_engine->openFile(streamUrl)) {
+        m_engine->play();
+        m_playPauseBtn->setText("暂停");
+        m_playPauseBtn->setEnabled(true);
+        m_stopBtn->setEnabled(true);
+    }
+}
+
+void MainWindow::onStreamError(const QString& err)
+{
+    QMessageBox::warning(this, "推流失败", err);
+}
+
+void MainWindow::playDirect(const QString& url)
+{
+    m_engine->stop();
+    void* winId = m_videoWidget->getWindowId();
+    m_engine->setRenderWindow(winId);
+
+    if (m_engine->openFile(url)) {
+        m_engine->play();
+        m_playPauseBtn->setText("暂停");
+        m_playPauseBtn->setEnabled(true);
+        m_stopBtn->setEnabled(true);
+    } else {
+        QMessageBox::warning(this, "错误", "无法播放该链接");
+    }
+}
+
 // ========== 播放器功能 ==========
 
 void MainWindow::onOpenFile()
@@ -397,32 +431,30 @@ void MainWindow::onSliderReleased()
 
 void MainWindow::onNetworkPlay()
 {
-    NetworkDialog dialog(this);
+    // 不再在 lambda 里使用 dialog 对象
+    NetworkDialog* dialog = new NetworkDialog(this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
 
-    // 使用 exec() 同步等待，但内部信号会在准备好后 accept()
-    if (dialog.exec() == QDialog::Accepted) {
-        QString url = dialog.getUrl();
-        if (url.isEmpty()) return;
+    // ✅ 只连一个信号：拿到 URL 后就关闭对话框
+    connect(dialog, &NetworkDialog::urlReady, this, [this, dialog](const QString& url) {
+        dialog->accept();   // 先关闭对话框
+        dialog->deleteLater();
 
-        m_engine->stop();
-        void* winId = m_videoWidget->getWindowId();
-        m_engine->setRenderWindow(winId);
-
-        if (m_engine->openFile(url)) {
-            QTimer::singleShot(1000, this, [this]() {
-                m_progressBar->setDuration(m_engine->duration());
-                m_engine->play();
-                m_playPauseBtn->setText("暂停");
-                m_playPauseBtn->setEnabled(true);
-                m_stopBtn->setEnabled(true);
-            });
-            if (m_furinaLottie) {
-                m_furinaLottie->setOpacity(0.3);
+        if (url.contains("bilibili.com")) {
+            if (!m_networkManager) {
+                m_networkManager = new NetworkStreamManager(this);
+                connect(m_networkManager, &NetworkStreamManager::streamReady,
+                        this, &MainWindow::onStreamReady);
+                connect(m_networkManager, &NetworkStreamManager::streamError,
+                        this, &MainWindow::onStreamError);
             }
+            m_networkManager->startStream(url);
         } else {
-            QMessageBox::warning(this, "错误", "无法播放该链接");
+            playDirect(url);
         }
-    }
+    });
+
+    dialog->show();
 }
 
 void MainWindow::onFullscreenChanged(bool fullscreen)
@@ -465,10 +497,15 @@ void MainWindow::resizeEvent(QResizeEvent* event)
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
+    if (m_networkManager) {
+        m_networkManager->stopStream();
+    }
+
     if (isFullScreen()) {
         onFullscreenChanged(false);
     }
     event->accept();
+
     if (m_engine) {
         QTimer::singleShot(0, this, [this]() {
             m_engine->stop();

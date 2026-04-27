@@ -8,6 +8,7 @@
 #include <memory>
 #include <QSlider>
 #include "src/engine/playback_state.h"
+#include "src/network/network_stream_manager.h"
 #include "src/ui/download_widget.h"
 
 class PlayEngine;
@@ -51,12 +52,18 @@ private slots:
     // 窗口控制
     void toggleMaximize();
 
+    void onStreamReady(const QString& streamUrl);
+    void onStreamError(const QString& err);
+    void playDirect(const QString& url);
+
 private:
     void setupUI();
     void setupConnections();
     void setupTitleBar();
     void setupNavigation();
     void setupStackedWidget();
+
+    NetworkStreamManager* m_networkManager = nullptr;
 
     // 创建各个页面
     QWidget* createPlayerPage();

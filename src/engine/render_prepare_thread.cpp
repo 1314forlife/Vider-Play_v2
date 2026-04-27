@@ -42,24 +42,25 @@ int64_t RenderPrepareThread::getAudioTime() {
     return 0;
 }
 
-bool RenderPrepareThread::shouldDropFrame(int64_t framePts) {
+bool RenderPrepareThread::shouldDropFrame(int64_t framePts)
+{
     int64_t audioTime = getAudioTime();
     if (audioTime <= 0) return false;
 
-    // 视频比音频慢多少（微秒）
     int64_t diff = framePts - audioTime;
 
-    // 视频太慢（落后超过阈值），等待
-    if (diff > SYNC_THRESHOLD * US_PER_SECOND) {
-        return false;  // 不丢帧，等待
+    // ✅ 网络流容错：增大阈值，避免音频“看起来滞后”
+    // 视频最多比音频快 200ms 才丢帧（原来是几十毫秒）
+    if (diff < -200000) {      // 视频超前 > 200ms
+        return true;           // 丢帧
     }
 
-    // 视频太快（超前超过阈值），丢帧
-    if (diff < -SYNC_THRESHOLD * US_PER_SECOND) {
-        return true;   // 丢帧
+    // 视频比音频慢，不丢帧（等音频）
+    if (diff > 500000) {       // 视频落后 > 500ms
+        return false;
     }
 
-    return false;  // 同步范围内，不丢帧
+    return false;
 }
 
 void RenderPrepareThread::run() {

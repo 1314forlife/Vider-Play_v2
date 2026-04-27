@@ -22,12 +22,18 @@ signals:
     void streamError(const QString &error);
     void logMessage(const QString &msg);
 
-private:
-    void setupProcess();
+private slots:
+    void onProcessFinished(int exitCode, QProcess::ExitStatus status);
+    void onDelayedStart();
 
 private:
+    void setupProcess();
+    QString m_currentUrl;
+    bool m_isStopping;
+    QTimer* m_restartTimer;
     QProcess *m_process;
     QString m_localUrl;
+    QString m_pendingUrl;
     int m_port;
     bool m_isReady;
 };

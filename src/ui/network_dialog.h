@@ -8,21 +8,22 @@
 #include <QProgressBar>
 #include "src/network/network_stream_manager.h"
 
-class NetworkStreamManager;  // 前向声明，不是 NetworkPlayer
-
-class NetworkDialog : public QDialog {
+class NetworkDialog : public QDialog
+{
     Q_OBJECT
+
 public:
     explicit NetworkDialog(QWidget* parent = nullptr);
     ~NetworkDialog();
 
-    QString getUrl() const { return m_url; }
+    QString getUrl() const { return m_urlEdit->text(); }
 
 signals:
     void urlReady(const QString& url);
 
 private slots:
     void onPlay();
+    void onCancel();
     void onLogMessage(const QString& msg);
     void onError(const QString& error);
     void onPlayReady(const QString& localUrl);
@@ -33,8 +34,7 @@ private:
     QPushButton* m_cancelBtn;
     QLabel* m_statusLabel;
     QProgressBar* m_progressBar;
-    QString m_url;
-    NetworkStreamManager* m_streamMgr;  // 改为这个类型
+    NetworkStreamManager* m_streamMgr;
 };
 
-#endif
+#endif // NETWORK_DIALOG_H

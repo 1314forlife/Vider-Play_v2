@@ -2,13 +2,16 @@
 #include <QDebug>
 #include <QDir>
 #include <QTimer>
-#include <QTemporaryFile>
+#include <QThread>
+#include <QCoreApplication>
 
 NetworkStreamManager::NetworkStreamManager(QObject *parent)
     : QObject(parent)
     , m_process(nullptr)
-    , m_port(12345)
+    , m_port(1935)
     , m_isReady(false)
+    , m_isStopping(false)
+    , m_restartTimer(nullptr)
 {
     setupProcess();
 }
@@ -40,50 +43,58 @@ void NetworkStreamManager::startStream(const QString &bilibiliUrl)
         return;
     }
 
-    if (isRunning()) {
-        stopStream();
+    // ✅ 去重：同一个 URL 已经在推流
+    if (m_currentUrl == bilibiliUrl && isRunning()) {
+        emit logMessage("Same URL already pushing, skip");
+        return;
     }
 
+    // ✅ 如果需要切换 URL，先安全停止
+    if (isRunning()) {
+        m_currentUrl.clear();
+        stopStream();
+        m_isStopping = true;
+
+        if (!m_restartTimer) {
+            m_restartTimer = new QTimer(this);
+            m_restartTimer->setSingleShot(true);
+            connect(m_restartTimer, &QTimer::timeout, this, &NetworkStreamManager::onDelayedStart);
+        }
+
+        m_restartTimer->start(2000);
+        m_pendingUrl = bilibiliUrl;
+        return;
+    }
+
+    m_currentUrl = bilibiliUrl;
     m_isReady = false;
     m_localUrl.clear();
     setupProcess();
 
-    // ====================== 【彻底修复崩溃】创建 BAT 文件 ======================
-    QString batPath = QDir::currentPath() + "/run_stream.bat";
-    QFile batFile(batPath);
+    QString appDir = QCoreApplication::applicationDirPath();
+    QString batPath = appDir + "/run_stream.bat";
 
-    if (!batFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        emit streamError("无法创建批处理文件");
+    // ✅ 检查 bat 是否存在
+    if (!QFile::exists(batPath)) {
+        emit streamError("run_stream.bat not found in: " + appDir);
         return;
     }
 
-    QString command = QString(
-                          "yt-dlp --cookies \"cookies.txt\" --referer \"https://www.bilibili.com\" "
-                          "-f \"bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]\" "
-                          "--merge-output-format mkv -o - \"%1\" "
-                          "| ffmpeg -i pipe:0 -c:v libx264 -preset ultrafast -c:a aac -f mpegts tcp://127.0.0.1:%2?listen"
-                          ).arg(bilibiliUrl).arg(m_port);
+    // ✅ 直接传参启动，不再修改 bat 内容
+    m_process->start("cmd.exe", QStringList() << "/c" << batPath << bilibiliUrl);
 
-    QTextStream out(&batFile);
-    out << "@echo off\n";
-    out << command;
-    batFile.close();
+    // ✅ 只输出日志，不依赖字符串触发
+    connect(m_process, &QProcess::readyReadStandardError, this, [this]() {
+        emit logMessage(QString::fromUtf8(m_process->readAllStandardError()));
+    });
 
-    emit logMessage("Command: " + command);
-
-    // ====================== 运行 .bat 文件，永不崩溃 ======================
-    m_process->start(batPath, QStringList());
-
-    connect(m_process, &QProcess::readyReadStandardOutput, this, [this]() {
-        QString output = QString::fromUtf8(m_process->readAllStandardOutput());
-        emit logMessage(output);
-
-        if (!m_isReady && (output.contains("tcp://") || output.contains("Listening") || output.contains("Press [q] to stop"))) {
-            QTimer::singleShot(800, this, [this]() {
-                m_isReady = true;
-                m_localUrl = QString("tcp://127.0.0.1:%1").arg(m_port);
-                emit streamReady(m_localUrl);
-            });
+    // ✅ 固定 5 秒后认为推流就绪
+    QTimer::singleShot(5000, this, [this]() {
+        if (!m_isReady) {
+            m_isReady = true;
+            m_localUrl = "rtmp://127.0.0.1/live/stream";
+            emit streamReady(m_localUrl);
+            emit logMessage("推流已就绪（固定延迟）");
         }
     });
 
@@ -91,30 +102,49 @@ void NetworkStreamManager::startStream(const QString &bilibiliUrl)
         emit streamError("Process error: " + QString::number(error));
     });
 
-    connect(m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int exitCode, QProcess::ExitStatus status) {
-                if (exitCode != 0 && !m_isReady) {
-                    emit streamError("Process exit: " + QString::number(exitCode));
-                }
-                m_isReady = false;
-            });
+    connect(m_process, &QProcess::finished, this, &NetworkStreamManager::onProcessFinished);
 
     QTimer::singleShot(30000, this, [this]() {
         if (m_process && m_process->state() == QProcess::Running && !m_isReady) {
-            emit streamError("Timeout");
+            emit streamError("30秒超时，未检测到推流");
             stopStream();
         }
     });
+}
+
+void NetworkStreamManager::onProcessFinished(int exitCode, QProcess::ExitStatus status)
+{
+    if (exitCode != 0 && !m_isReady) {
+        emit streamError("Process exit: " + QString::number(exitCode));
+    }
+    m_isReady = false;
+    m_currentUrl.clear();
+
+    if (m_isStopping) {
+        m_isStopping = false;
+    }
+}
+
+void NetworkStreamManager::onDelayedStart()
+{
+    if (!m_pendingUrl.isEmpty()) {
+        startStream(m_pendingUrl);
+        m_pendingUrl.clear();
+    }
 }
 
 void NetworkStreamManager::stopStream()
 {
     if (m_process && m_process->state() == QProcess::Running) {
         m_process->terminate();
-        m_process->waitForFinished(3000);
+        if (!m_process->waitForFinished(3000)) {
+            m_process->kill();
+            m_process->waitForFinished(1000);
+        }
     }
     m_isReady = false;
     m_localUrl.clear();
+    m_currentUrl.clear();
 }
 
 bool NetworkStreamManager::isRunning() const
