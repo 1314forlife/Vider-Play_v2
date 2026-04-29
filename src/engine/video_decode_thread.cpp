@@ -36,6 +36,13 @@ void VideoDecodeThread::resumeThread() {
     LOG_INFO("VideoDecodeThread", "解码线程恢复");
 }
 
+void VideoDecodeThread::flushDecoder() {
+    if (m_decoder) {
+        m_decoder->flush();
+    }
+    LOG_INFO("VideoDecodeThread", "已请求刷新视频解码器");
+}
+
 void VideoDecodeThread::run() {
     if (!m_decoder || !m_outputQueue) {
         LOG_ERROR("VideoDecodeThread", "解码器或输出队列未设置");

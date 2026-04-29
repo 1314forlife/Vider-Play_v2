@@ -37,6 +37,8 @@ public:
     bool readFrame(FrameData& frame) override { return false; }
     bool seek(int64_t timestampUs);
 
+    void flush();
+
     // 视频信息
     int width() const { return m_width; }
     int height() const { return m_height; }

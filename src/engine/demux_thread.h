@@ -31,6 +31,8 @@ public:
     void pauseThread();
     void resumeThread();
 
+    void flush();
+
     // 流信息
     int videoStreamIndex() const { return m_videoStreamIndex; }
     int audioStreamIndex() const { return m_audioStreamIndex; }

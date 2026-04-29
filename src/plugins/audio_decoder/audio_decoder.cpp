@@ -8,6 +8,13 @@ AudioDecoder::~AudioDecoder() {
     close();
 }
 
+void AudioDecoder::flush() {
+    if (m_codecCtx) {
+        avcodec_flush_buffers(m_codecCtx);
+    }
+    m_eof = false;
+    LOG_INFO("AudioDecoder", "解码器缓冲区已刷新");
+}
 bool AudioDecoder::open(AVCodecParameters* codecPar, AVRational timeBase) {
     close();
 

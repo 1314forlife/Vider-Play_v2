@@ -1,3 +1,7 @@
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QEventLoop>
+#include <QRegularExpression>
 #include "play_engine.h"
 #include "src/plugins/audio_decoder/audio_decoder.h"
 #include "src/plugins/video_decoder/video_decoder.h"
@@ -81,9 +85,157 @@ bool PlayEngine::setRenderer(const QString& name) {
     return true;
 }
 
+bool PlayEngine::parseMasterPlaylist(const QString& content) {
+    m_streams.clear();
+
+    QStringList lines = content.split('\n');
+    for (int i = 0; i < lines.size(); i++) {
+        QString line = lines[i].trimmed();
+        if (line.startsWith("#EXT-X-STREAM-INF")) {
+            StreamInfo info;
+
+            // 解析 BANDWIDTH
+            QRegularExpression bwReg("BANDWIDTH=(\\d+)");
+            QRegularExpressionMatch bwMatch = bwReg.match(line);
+            if (bwMatch.hasMatch()) {
+                info.bandwidth = bwMatch.captured(1).toInt();
+            }
+
+            // 解析 RESOLUTION
+            QRegularExpression resReg("RESOLUTION=(\\d+)x(\\d+)");
+            QRegularExpressionMatch resMatch = resReg.match(line);
+            if (resMatch.hasMatch()) {
+                info.width = resMatch.captured(1).toInt();
+                info.height = resMatch.captured(2).toInt();
+                info.resolution = QString("%1p").arg(info.height);
+            }
+
+            // 下一行是 URL
+            if (i + 1 < lines.size()) {
+                info.url = lines[i + 1].trimmed();
+                i++; // 跳过下一行
+            }
+
+            m_streams.append(info);
+        }
+    }
+
+    // 设置索引
+    for (int i = 0; i < m_streams.size(); i++) {
+        m_streams[i].index = i;
+    }
+
+    LOG_INFO("PlayEngine", QString("解析到 %1 个清晰度").arg(m_streams.size()));
+    return !m_streams.isEmpty();
+}
+
+void PlayEngine::setStreams(const QVector<StreamInfo>& streams) {
+    m_streams = streams;
+}
+
+void PlayEngine::switchToStream(int streamIndex) {
+    if (streamIndex < 0 || streamIndex >= m_streams.size()) {
+        LOG_ERROR("PlayEngine", "无效的清晰度索引: " + QString::number(streamIndex));
+        return;
+    }
+
+    if (streamIndex == m_currentStreamIndex) {
+        LOG_INFO("PlayEngine", "已经是当前清晰度");
+        return;
+    }
+
+    int64_t currentPos = m_currentPts;
+    LOG_INFO("PlayEngine", QString("切换清晰度: %1 -> %2, 当前位置: %3 ms")
+                               .arg(m_currentStreamIndex)
+                               .arg(streamIndex)
+                               .arg(currentPos / 1000));
+
+    QString newUrl = m_streams[streamIndex].url;
+
+    // 相对路径转绝对路径
+    if (!newUrl.startsWith("http") && !m_masterUrl.isEmpty()) {
+        QUrl baseUrl(m_masterUrl);
+        QUrl resolvedUrl = baseUrl.resolved(QUrl(newUrl));
+        newUrl = resolvedUrl.toString();
+        LOG_INFO("PlayEngine", "切换时转换路径: " + m_streams[streamIndex].url + " -> " + newUrl);
+    }
+
+    m_currentStreamUrl = newUrl;
+
+    if (m_videoDecodeThread) m_videoDecodeThread->pauseThread();
+    if (m_audioDecodeThread) m_audioDecodeThread->pauseThread();
+    if (m_renderPrepareThread) m_renderPrepareThread->pauseThread();
+
+    if (m_videoPacketQueue) m_videoPacketQueue->clear();
+    if (m_audioPacketQueue) m_audioPacketQueue->clear();
+    if (m_videoFrameQueue) m_videoFrameQueue->clear();
+    if (m_audioFrameQueue) m_audioFrameQueue->clear();
+
+    if (m_videoDecodeThread) m_videoDecodeThread->flushDecoder();
+    if (m_audioDecodeThread) m_audioDecodeThread->flushDecoder();
+
+    if (m_demuxThread) {
+        m_demuxThread->stopThread();
+        m_demuxThread->open(newUrl);
+        m_demuxThread->startThread();
+    }
+
+    if (currentPos > 0 && m_demuxThread) {
+        m_demuxThread->seek(currentPos);
+    }
+
+    if (m_videoDecodeThread) m_videoDecodeThread->resumeThread();
+    if (m_audioDecodeThread) m_audioDecodeThread->resumeThread();
+    if (m_renderPrepareThread) m_renderPrepareThread->resumeThread();
+
+    m_currentStreamIndex = streamIndex;
+
+    emit streamSwitched(streamIndex);
+    LOG_INFO("PlayEngine", "清晰度切换完成: " + m_streams[streamIndex].resolution);
+}
+
 bool PlayEngine::openFile(const QString& filePath) {
     stop();
 
+    if (filePath.startsWith("http") && filePath.endsWith(".m3u8")) {
+        // 保存原始 master URL
+        m_masterUrl = filePath;
+
+        QNetworkAccessManager nam;
+        QNetworkReply* reply = nam.get(QNetworkRequest(QUrl(filePath)));
+        QEventLoop loop;
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        loop.exec();
+
+        QString content = reply->readAll();
+        if (parseMasterPlaylist(content) && !m_streams.isEmpty()) {
+            m_isMasterPlaylist = true;
+            int defaultIndex = m_streams.size() / 2;
+            m_currentStreamIndex = defaultIndex;
+            QString selectedUrl = m_streams[defaultIndex].url;
+
+            // 关键修复：相对路径转绝对 URL
+            if (!selectedUrl.startsWith("http")) {
+                QUrl baseUrl(m_masterUrl);
+                QUrl resolvedUrl = baseUrl.resolved(QUrl(selectedUrl));
+                selectedUrl = resolvedUrl.toString();
+                LOG_INFO("PlayEngine", "转换相对路径: " + m_streams[defaultIndex].url + " -> " + selectedUrl);
+            }
+
+            LOG_INFO("PlayEngine", QString("检测到多码率流，共 %1 个清晰度，默认选择: %2")
+                                       .arg(m_streams.size())
+                                       .arg(m_streams[defaultIndex].resolution));
+
+            emit qualityStreamsReady(m_streams, defaultIndex);
+            return openStream(selectedUrl);
+        }
+    }
+
+    return openStream(filePath);
+}
+
+// 新增：打开具体的流（不解析主列表）
+bool PlayEngine::openStream(const QString& url) {
     // 1. 创建包队列（解复用 → 解码器）
     m_videoPacketQueue = std::make_unique<ThreadSafeQueue<Packet>>(100);
     m_audioPacketQueue = std::make_unique<ThreadSafeQueue<Packet>>(100);
@@ -106,12 +258,13 @@ bool PlayEngine::openFile(const QString& filePath) {
     connect(m_demuxThread.get(), &DemuxThread::sigError,
             this, &PlayEngine::sigError);
 
-    // 3. 打开文件（解复用线程会解析流信息）
-    if (!m_demuxThread->open(filePath)) {
-        LOG_ERROR("PlayEngine", "打开文件失败: " + filePath);
+    // 打开文件（解复用线程会解析流信息）
+    if (!m_demuxThread->open(url)) {
+        LOG_ERROR("PlayEngine", "打开文件失败: " + url);
         return false;
     }
 
+    m_currentStreamUrl = url;
     return true;
 }
 
@@ -143,24 +296,71 @@ void PlayEngine::play() {
 
     if (m_state == PlaybackState::Paused) {
         m_state = PlaybackState::Playing;
-        m_renderTimer->setTimerType(Qt::PreciseTimer);
-        m_renderTimer->start(1000 / m_fps);
 
+        // ========== 第1步：清空所有队列 ==========
+        if (m_videoPacketQueue) {
+            LOG_INFO("PlayEngine", QString("清空视频包队列，共 %1 个包").arg(m_videoPacketQueue->size()));
+            m_videoPacketQueue->clear();
+        }
+        if (m_audioPacketQueue) {
+            LOG_INFO("PlayEngine", QString("清空音频包队列，共 %1 个包").arg(m_audioPacketQueue->size()));
+            m_audioPacketQueue->clear();
+        }
+        if (m_videoFrameQueue) {
+            LOG_INFO("PlayEngine", QString("清空视频帧队列，共 %1 帧").arg(m_videoFrameQueue->size()));
+            m_videoFrameQueue->clear();
+        }
+        if (m_audioFrameQueue) {
+            LOG_INFO("PlayEngine", QString("清空音频帧队列，共 %1 帧").arg(m_audioFrameQueue->size()));
+            m_audioFrameQueue->clear();
+        }
+
+        // ========== 第2步：刷新解码器 ==========
+        if (m_videoDecodeThread) {
+            m_videoDecodeThread->flushDecoder();
+        }
+        if (m_audioDecodeThread) {
+            m_audioDecodeThread->flushDecoder();
+        }
+
+        // ========== 第3步：刷新解复用器 ==========
+        if (m_demuxThread) {
+            m_demuxThread->flush();
+        }
+
+        // ========== 第4步：Seek 到当前位置（强制重新填充队列） ==========
+        if (m_demuxThread) {
+            int64_t currentPos = m_currentPts;
+            LOG_INFO("PlayEngine", "恢复播放，强制 seek 到 " + QString::number(currentPos / 1000) + " 秒");
+            m_demuxThread->seek(currentPos);
+        }
+
+        // ========== 第5步：恢复所有线程 ==========
+        if (m_demuxThread) {
+            m_demuxThread->resumeThread();
+        }
         if (m_videoDecodeThread) {
             m_videoDecodeThread->resumeThread();
         }
-
+        if (m_audioDecodeThread) {
+            m_audioDecodeThread->resumeThread();
+        }
         if (m_renderPrepareThread) {
             m_renderPrepareThread->resumeThread();
         }
 
+        // ========== 第6步：恢复渲染定时器 ==========
+        m_renderTimer->setTimerType(Qt::PreciseTimer);
+        m_renderTimer->start(1000 / m_fps);
+
+        // ========== 第7步：恢复音频渲染 ==========
         if (m_audioRenderer) {
             m_audioRenderer->play();
         }
 
         emit sigStateChanged(m_state);
-        LOG_INFO("PlayEngine", "恢复播放");
-    } else if (m_state == PlaybackState::Stopped) {
+        LOG_INFO("PlayEngine", "恢复播放完成");
+    }else if (m_state == PlaybackState::Stopped) {
         m_state = PlaybackState::Playing;
 
         m_videoFrameQueue->clear();

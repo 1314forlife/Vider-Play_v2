@@ -17,7 +17,7 @@ class AudioDecoder : public AudioDecoderBase {
 public:
     explicit AudioDecoder(QObject* parent = nullptr);
     ~AudioDecoder();
-
+    void flush();
     // 🔥 实现基类所有纯虚函数
     bool open(const QString& url) override { return false; }  // 不使用，但必须实现
     void close() override;

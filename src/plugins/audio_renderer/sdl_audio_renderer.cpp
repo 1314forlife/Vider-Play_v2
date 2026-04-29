@@ -102,6 +102,14 @@ void SDLAudioRenderer::stop() {
     LOG_INFO("SDLAudioRenderer", "音频设备关闭");
 }
 
+void SDLAudioRenderer::clearBuffer() {
+    m_currentBuffer = nullptr;
+    m_currentBufferSize = 0;
+    m_currentBufferPos = 0;
+    m_needFreeBuffer = false;
+    LOG_INFO("SDLAudioRenderer", "音频缓冲区已清空");
+}
+
 void SDLAudioRenderer::setVolume(int volume) {
     m_volume = std::max(0, std::min(100, volume));
 }

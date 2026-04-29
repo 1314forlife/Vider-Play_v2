@@ -17,6 +17,7 @@ public:
     void play() override;
     void pause() override;
     void stop() override;
+    void clearBuffer();
     void setVolume(int volume) override;
     void setAudioQueue(ThreadSafeQueue<AudioFrame>* queue) override;
 

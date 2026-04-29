@@ -20,12 +20,22 @@ class VideoDecoder;
 class SDLRenderer;
 class QThread;
 
+struct StreamInfo {
+    QString url;          // 子播放列表地址
+    int bandwidth;        // 码率 (bps)
+    int width;
+    int height;
+    QString resolution;   // "1080p"
+    int index;
+};
+
 class PlayEngine : public QObject {
     Q_OBJECT
 public:
     static PlayEngine& instance();
 
     bool openFile(const QString& filePath);
+    bool openStream(const QString& url);
     void setRenderWindow(void* winId);
     void setRenderWindowSize(int width, int height);
 
@@ -53,12 +63,24 @@ public:
     bool setDecoder(const QString& name);
     bool setRenderer(const QString& name);
 
+    bool parseMasterPlaylist(const QString& content);
+    // 新增：设置多码率流列表（打开 master.m3u8 时调用）
+    void setStreams(const QVector<StreamInfo>& streams);
+    // 新增：获取所有流信息
+    const QVector<StreamInfo>& getStreams() const { return m_streams; }
+    // 新增：切换到指定清晰度
+    void switchToStream(int streamIndex);
+    // 新增：获取当前清晰度索引
+    int currentStreamIndex() const { return m_currentStreamIndex; }
+
 signals:
     void sigStateChanged(PlaybackState state);
     void sigProgressChanged(int64_t current, int64_t total);  // 🔥 如果需要进度条
     void sigError(const QString& error);
     void sigFrameRendered();  // 🔥 如果需要帧统计
-
+    // 新增：清晰度切换完成
+    void streamSwitched(int newIndex);
+    void qualityStreamsReady(const QVector<StreamInfo>& streams, int defaultIndex);
 
 private slots:
     void onRenderTimer();
@@ -126,6 +148,13 @@ private:
     QMap<QString, std::function<std::unique_ptr<SDLRenderer>()>> m_rendererFactories;
 
     static PlayEngine* s_instance;
+
+    QVector<StreamInfo> m_streams;
+    int m_currentStreamIndex = -1;
+    bool m_isMasterPlaylist = false;
+    QString m_currentStreamUrl;
+
+    QString m_masterUrl;
 };
 
 #endif

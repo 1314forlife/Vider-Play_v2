@@ -36,6 +36,13 @@ void AudioDecodeThread::resumeThread() {
     LOG_INFO("AudioDecodeThread", "音频解码线程恢复");
 }
 
+void AudioDecodeThread::flushDecoder() {
+    if (m_decoder) {
+        m_decoder->flush();
+    }
+    LOG_INFO("AudioDecodeThread", "已请求刷新解码器");
+}
+
 void AudioDecodeThread::run() {
     if (!m_decoder || !m_outputQueue) {
         LOG_ERROR("AudioDecodeThread", "解码器或输出队列未设置");

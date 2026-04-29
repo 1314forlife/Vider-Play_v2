@@ -7,9 +7,11 @@
 #include <QStackedWidget>
 #include <memory>
 #include <QSlider>
+#include <QComboBox>
 #include "src/engine/playback_state.h"
 #include "src/network/network_stream_manager.h"
 #include "src/ui/download_widget.h"
+//#include "src/engine/play_engine.h"
 
 class PlayEngine;
 class VideoWidget;
@@ -18,7 +20,7 @@ class TitleBar;
 class NavigationWidget;
 class FurinaLottie;
 enum class PlaybackState;
-
+struct StreamInfo;
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
@@ -42,6 +44,9 @@ private slots:
     void onNetworkPlay();
     void onFullscreenChanged(bool fullscreen);
     void onVolumeChanged(int volume);
+    void onLicenseReady(const QString& licenseKey);
+
+    void onQualityChanged(int index);
 
     // 页面切换
     void switchToPlayer();
@@ -56,12 +61,23 @@ private slots:
     void onStreamError(const QString& err);
     void playDirect(const QString& url);
 
+    void onLoginSuccess(const QString& token);
+    void onPlayVideo(const QString& videoId);
+
+    // void onQualityChanged(int index);
+
+    //清晰度切换
+    void onQualityStreamsReady(const QVector<StreamInfo>& streams, int defaultIndex);
 private:
     void setupUI();
     void setupConnections();
     void setupTitleBar();
     void setupNavigation();
     void setupStackedWidget();
+    void playLocalFile(const QString& filePath);
+
+    QComboBox* m_qualityCombo = nullptr;
+    void updateQualityCombo();
 
     NetworkStreamManager* m_networkManager = nullptr;
 
@@ -93,6 +109,12 @@ private:
 
     FurinaLottie* m_furinaLottie = nullptr;
     QPushButton* m_wallpaperBtn = nullptr;
+
+    void checkLoginAndPlay(const QString& videoId);
+    QString m_currentToken;
+    QString m_currentStreamUrl;    // ← 添加这一行：当前播放的URL
+    QString m_currentVideoId;  // 添加：当前播放的视频ID
+    bool m_isLicenseRequired = false;  // 添加：是否需要许可证
 };
 
 #endif

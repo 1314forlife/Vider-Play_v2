@@ -105,6 +105,13 @@ bool VideoDecoder::seek(int64_t timestampUs) {
     return true;
 }
 
+void VideoDecoder::flush() {
+    if (m_codecCtx) {
+        avcodec_flush_buffers(m_codecCtx);
+    }
+    m_eof = false;
+    LOG_INFO("VideoDecoder", "解码器缓冲区已刷新");
+}
 void VideoDecoder::close() {
     if (m_frame) {
         av_frame_free(&m_frame);

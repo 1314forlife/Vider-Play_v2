@@ -23,6 +23,7 @@ public:
     void stopThread();
     void pauseThread();
     void resumeThread();
+    void flushDecoder();
 
 signals:
     void sigFrameDecoded();

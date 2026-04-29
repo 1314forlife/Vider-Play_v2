@@ -221,3 +221,70 @@ QLabel {
 #historyList::item:hover {
     background: rgba(74, 144, 226, 0.15);
 }
+
+/* ========== 登录对话框样式 ========== */
+
+#loginDialog {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #0D1B2A,
+        stop:1 #1A2A3A);
+}
+
+#loginTitle {
+    color: #7EC8E3;
+    font-size: 18px;
+    font-weight: bold;
+    margin: 10px;
+}
+
+#loginEdit {
+    background: rgba(13, 27, 42, 0.8);
+    border: 1px solid rgba(74, 144, 226, 0.5);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #E8F4FD;
+    font-size: 14px;
+    min-height: 35px;
+}
+
+#loginEdit:focus {
+    border: 1px solid #4A90E2;
+    background: rgba(13, 27, 42, 1);
+}
+
+#loginBtn, #registerBtn {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #4A90E2,
+        stop:1 #3A7BC8);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: bold;
+    font-size: 14px;
+    min-height: 35px;
+}
+
+#loginBtn:hover, #registerBtn:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #5AA0F2,
+        stop:1 #4A90E2);
+}
+
+#loginBtn:pressed, #registerBtn:pressed {
+    background: #2E6CB8;
+}
+
+#cancelBtn {
+    background: transparent;
+    border: 1px solid rgba(74, 144, 226, 0.5);
+    border-radius: 8px;
+    color: #7EC8E3;
+    font-size: 14px;
+    min-height: 35px;
+}
+
+#cancelBtn:hover {
+    background: rgba(74, 144, 226, 0.2);
+    border-color: #4A90E2;
+}

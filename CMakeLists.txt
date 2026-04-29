@@ -17,6 +17,7 @@ endif()
 find_package(Qt6 REQUIRED
     COMPONENTS
     Core
+    Gui
     Widgets
     Network
 )
@@ -119,12 +120,19 @@ set(RESOURCES
 # ========== 可执行文件 ==========
 qt6_add_executable(VideoPlayer ${SOURCES} ${HEADERS} ${RESOURCES}
     src/download/download_history.h
-    src/download/download_history.cpp)
+    src/download/download_history.cpp
+    src/network/LicenseClient.h
+    src/network/LicenseClient.cpp
+    src/ui/LoginDialog.h
+    src/ui/LoginDialog.cpp)
+
+
 
 target_link_libraries(VideoPlayer PRIVATE
     Qt6::Core
     Qt6::Widgets
     Qt6::Network
+    Qt6::Gui
     avformat
     avcodec
     avutil

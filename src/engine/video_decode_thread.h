@@ -22,6 +22,8 @@ public:
     void pauseThread();
     void resumeThread();
 
+    void flushDecoder();
+
 signals:
     void sigFrameDecoded();
     void sigDecodeFinished();

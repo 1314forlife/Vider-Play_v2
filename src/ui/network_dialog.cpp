@@ -55,8 +55,16 @@ void NetworkDialog::onPlay()
         return;
     }
 
+    // if (!url.contains("bilibili.com")) {
+    //     QMessageBox::warning(this, "错误", "目前仅支持B站视频链接");
+    //     return;
+    // }
+
+    // ✅ 放宽限制：既支持B站，也支持其他URL（包括本地HLS）
     if (!url.contains("bilibili.com")) {
-        QMessageBox::warning(this, "错误", "目前仅支持B站视频链接");
+        // 对于非B站链接，直接发射 urlReady 信号，不走推流
+        emit urlReady(url);
+        accept();  // 直接关闭对话框
         return;
     }
 

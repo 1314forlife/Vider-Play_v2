@@ -8,6 +8,8 @@
 #include "src/ui/progress_bar.h"
 #include "src/theme/theme_manager.h"
 #include "src/ui/furina_lottie.h"
+#include "src/network/LicenseClient.h"
+#include "src/ui/LoginDialog.h"
 #include "network_dialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -31,6 +33,19 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
             this, &MainWindow::onEngineError);
     connect(m_engine, &PlayEngine::sigProgressChanged,
             this, &MainWindow::onProgressChanged);
+
+    // ========== 添加许可证客户端信号连接 ==========
+    connect(LicenseClient::instance(), &LicenseClient::licenseReady,
+            this, &MainWindow::onLicenseReady);
+    connect(LicenseClient::instance(), &LicenseClient::licenseFailed,
+            this, [this](const QString& error) {
+                QMessageBox::warning(this, "播放失败", "获取许可证失败: " + error);
+                m_isLicenseRequired = false;
+            });
+    // ===========================================
+
+    connect(m_engine, &PlayEngine::qualityStreamsReady,
+            this, &MainWindow::onQualityStreamsReady);
 
     resize(900, 600);
     setWindowTitle("芙宁娜·水之颂");
@@ -172,6 +187,13 @@ QWidget* MainWindow::createPlayerPage()
         }
     });
 
+    // ========== 添加清晰度下拉框 ==========
+    m_qualityCombo = new QComboBox(page);
+    m_qualityCombo->setFixedWidth(100);
+    m_qualityCombo->setVisible(false);  // 默认隐藏，有多码流时再显示
+    controlLayout->addWidget(m_qualityCombo);
+    // ===================================
+
     layout->addWidget(controlBar);
 
     // 连接进度条信号
@@ -233,6 +255,29 @@ QWidget* MainWindow::createSettingsPage()
 
     layout->addWidget(label);
     return page;
+}
+
+void MainWindow::checkLoginAndPlay(const QString& videoId)
+{
+    if (m_currentToken.isEmpty()) {
+        // 未登录，弹出登录对话框
+        LoginDialog* dialog = new LoginDialog(this);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        connect(dialog, &LoginDialog::loginSuccess, this, [this, videoId](const QString& token) {
+            m_currentToken = token;
+            // 登录成功后请求许可证
+            if (LicenseClient::instance()) {
+                LicenseClient::instance()->setToken(token);
+                LicenseClient::instance()->requestLicense(videoId);
+            }
+        });
+        dialog->show();
+    } else {
+        // 已登录，直接请求许可证
+        if (LicenseClient::instance()) {
+            LicenseClient::instance()->requestLicense(videoId);
+        }
+    }
 }
 
 // ========== 页面切换 ==========
@@ -316,6 +361,40 @@ void MainWindow::playDirect(const QString& url)
     }
 }
 
+void MainWindow::onLoginSuccess(const QString& token)
+{
+    m_currentToken = token;
+    LOG_INFO("MainWindow", "登录成功，token已保存");
+    // 可以显示一个提示
+    // QMessageBox::information(this, "提示", "登录成功");
+}
+
+void MainWindow::onPlayVideo(const QString& videoId)
+{
+    m_currentVideoId = videoId;
+    checkLoginAndPlay(videoId);
+}
+
+void MainWindow::onQualityStreamsReady(const QVector<StreamInfo>& streams, int defaultIndex) {
+    // 更新清晰度下拉框
+    m_qualityCombo->clear();
+    for (int i = 0; i < streams.size(); i++) {
+        const auto& stream = streams[i];
+        QString text = QString("%1 (%2 kbps)").arg(stream.resolution).arg(stream.bandwidth / 1000);
+        m_qualityCombo->addItem(text, i);
+    }
+    m_qualityCombo->setCurrentIndex(defaultIndex);
+    m_qualityCombo->setVisible(true);
+
+    // 连接信号（只连接一次）
+    static bool connected = false;
+    if (!connected) {
+        connect(m_qualityCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &MainWindow::onQualityChanged);
+        connected = true;
+        qDebug() << "清晰度下拉框信号已连接";
+    }
+}
 // ========== 播放器功能 ==========
 
 void MainWindow::onOpenFile()
@@ -325,8 +404,36 @@ void MainWindow::onOpenFile()
                                                     "视频文件 (*.mp4 *.avi *.mkv *.mov *.flv *.wmv);;所有文件 (*.*)");
     if (filePath.isEmpty()) return;
 
-    LOG_INFO("MainWindow", "打开文件: " + filePath);
+    // 判断是否需要许可证（如果是加密HLS流）
+    if (filePath.startsWith("http") && filePath.contains("m3u8")) {
+        // 提取视频ID，例如从文件名或路径
+        m_currentVideoId = "demo_001";  // 实际应该从URL或用户选择获取
+        m_isLicenseRequired = true;
 
+        // 检查是否已登录
+        if (LicenseClient::instance()->isLoggedIn()) {
+            // 已登录，直接请求许可证
+            LicenseClient::instance()->requestLicense(m_currentVideoId);
+        } else {
+            // 未登录，弹出登录框
+            LoginDialog* dialog = new LoginDialog(this);
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            connect(dialog, &LoginDialog::loginSuccess, this, [this](const QString& token) {
+                LicenseClient::instance()->setToken(token);
+                LicenseClient::instance()->requestLicense(m_currentVideoId);
+            });
+            dialog->show();
+        }
+        return;
+    }
+
+    // 普通文件直接播放
+    m_isLicenseRequired = false;
+    playLocalFile(filePath);
+}
+
+void MainWindow::playLocalFile(const QString& filePath)
+{
     m_engine->stop();
     void* winId = m_videoWidget->getWindowId();
     m_engine->setRenderWindow(winId);
@@ -343,14 +450,53 @@ void MainWindow::onOpenFile()
         m_playPauseBtn->setEnabled(true);
         m_stopBtn->setEnabled(true);
         m_playPauseBtn->setText("暂停");
-        LOG_INFO("MainWindow", "播放开始");
+        LOG_INFO("MainWindow", "本地文件播放开始");
 
-        // 播放时降低芙宁娜透明度
         if (m_furinaLottie) {
             m_furinaLottie->setOpacity(0.3);
         }
     } else {
         QMessageBox::warning(this, "错误", "无法打开视频文件");
+    }
+}
+
+void MainWindow::updateQualityCombo() {
+    auto streams = m_engine->getStreams();
+    if (streams.isEmpty()) {
+        if (m_qualityCombo) m_qualityCombo->setVisible(false);
+        return;
+    }
+
+    if (!m_qualityCombo) {
+        // 找到控制栏的位置添加
+        // 假设你有个 controlLayout
+        m_qualityCombo = new QComboBox(this);
+        m_qualityCombo->setFixedWidth(100);
+        // controlLayout->addWidget(m_qualityCombo);
+        connect(m_qualityCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &MainWindow::onQualityChanged);
+    }
+
+    m_qualityCombo->clear();
+    for (const auto& stream : streams) {
+        QString text = QString("%1 (%2 kbps)").arg(stream.resolution).arg(stream.bandwidth / 1000);
+        m_qualityCombo->addItem(text, stream.index);
+    }
+    m_qualityCombo->setVisible(true);
+
+    // 设置当前选中的清晰度
+    int currentIndex = m_engine->currentStreamIndex();
+    if (currentIndex >= 0) {
+        m_qualityCombo->setCurrentIndex(currentIndex);
+    }
+}
+
+void MainWindow::onQualityChanged(int index) {
+    if (index < 0 || !m_engine) return;
+
+    int streamIndex = m_qualityCombo->itemData(index).toInt();
+    if (streamIndex != m_engine->currentStreamIndex()) {
+        m_engine->switchToStream(streamIndex);
     }
 }
 
@@ -431,14 +577,15 @@ void MainWindow::onSliderReleased()
 
 void MainWindow::onNetworkPlay()
 {
-    // 不再在 lambda 里使用 dialog 对象
+    // 直接显示网络对话框，跳过登录
     NetworkDialog* dialog = new NetworkDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
 
-    // ✅ 只连一个信号：拿到 URL 后就关闭对话框
     connect(dialog, &NetworkDialog::urlReady, this, [this, dialog](const QString& url) {
-        dialog->accept();   // 先关闭对话框
+        dialog->accept();
         dialog->deleteLater();
+
+        m_currentStreamUrl = url;
 
         if (url.contains("bilibili.com")) {
             if (!m_networkManager) {
@@ -449,6 +596,10 @@ void MainWindow::onNetworkPlay()
                         this, &MainWindow::onStreamError);
             }
             m_networkManager->startStream(url);
+        } else if (url.contains(".m3u8")) {
+            // HLS 点播：直接播放，不需要许可证和登录
+            LOG_INFO("MainWindow", "直接播放 HLS: " + url);
+            playDirect(url);
         } else {
             playDirect(url);
         }
@@ -511,4 +662,44 @@ void MainWindow::closeEvent(QCloseEvent* event)
             m_engine->stop();
         });
     }
+}
+
+void MainWindow::onLicenseReady(const QString& licenseKey)
+{
+    if (!m_isLicenseRequired) return;
+
+    LOG_INFO("MainWindow", "收到许可证密钥: " + licenseKey);
+
+    // TODO: 根据你的播放引擎，设置解密密钥
+    // 方式1：如果 PlayEngine 支持设置解密密钥
+    // m_engine->setDecryptionKey(licenseKey);
+
+    // 方式2：如果是 HLS 流，可能需要修改 m3u8 的 URL
+    // 例如：添加解密参数
+    QString streamUrl = m_currentStreamUrl; // 你需要保存当前URL
+    if (streamUrl.contains("m3u8") && !licenseKey.isEmpty()) {
+        // 某些 HLS 播放器支持通过 URL 参数传递密钥
+        // streamUrl += "?decryption_key=" + licenseKey;
+    }
+
+    // 播放加密流
+    void* winId = m_videoWidget->getWindowId();
+    m_engine->setRenderWindow(winId);
+
+    if (m_engine->openFile(streamUrl)) {
+        m_progressBar->setDuration(m_engine->duration());
+        m_progressBar->setEnabled(true);
+        m_engine->play();
+        m_playPauseBtn->setText("暂停");
+        m_playPauseBtn->setEnabled(true);
+        m_stopBtn->setEnabled(true);
+
+        if (m_furinaLottie) {
+            m_furinaLottie->setOpacity(0.3);
+        }
+    } else {
+        QMessageBox::warning(this, "错误", "无法播放加密视频");
+    }
+
+    m_isLicenseRequired = false;
 }

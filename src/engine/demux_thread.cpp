@@ -189,6 +189,12 @@ void DemuxThread::resumeThread() {
     LOG_INFO("DemuxThread", "解复用线程恢复");
 }
 
+void DemuxThread::flush() {
+    // 清空内部缓冲（FFmpeg 格式上下文没有 flush，但我们可以重置 EOF）
+    m_eof = false;
+    LOG_INFO("DemuxThread", "解复用线程已刷新");
+}
+
 void DemuxThread::run() {
     if (!m_formatCtx) {
         LOG_ERROR("DemuxThread", "格式上下文未初始化");
