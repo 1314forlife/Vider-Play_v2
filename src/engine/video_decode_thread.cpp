@@ -49,14 +49,12 @@ void VideoDecodeThread::run() {
         return;
     }
 
-    LOG_INFO("VideoDecodeThread", "解码线程开始运行");
+    LOG_INFO("VideoDecodeThread", "解码线程开始运行 [诊断版]");
+    QThread::currentThread()->setPriority(QThread::HighPriority);
 
-    //  限速相关变量
-    QElapsedTimer fpsTimer;
-    fpsTimer.start();
-    int frameCount = 0;
-    double targetFps = 30.0;
-    int maxFramesPerSecond = 33;  // 最多 33 帧/秒
+    int decodedCount = 0;
+    QElapsedTimer debugTimer;
+    debugTimer.start();
 
     while (m_running) {
         if (m_paused) {
@@ -64,36 +62,42 @@ void VideoDecodeThread::run() {
             continue;
         }
 
-        //  限速
-        if (fpsTimer.elapsed() >= 1000) {
-            if (frameCount > maxFramesPerSecond) {
-                int waitMs = 1000 / targetFps;
-                QThread::msleep(waitMs);
-            }
-            frameCount = 0;
-            fpsTimer.restart();
-        }
-
-        // 队列限制
+        // 1. 队列满限制（保持原样，防止内存爆掉）
         if (m_outputQueue->size() >= 5) {
-            QThread::msleep(5);
+            QThread::msleep(2); // 稍微缩短等待，提高响应性
             continue;
         }
 
         FrameData frame;
-        if (m_decoder->decodeFrame(frame)) {
+
+        // 🚨 监控点：如果卡死，这里会是最后的绝唱
+        // LOG_DEBUG("VideoDecodeThread", "准备进入 decodeFrame...");
+
+        bool success = m_decoder->decodeFrame(frame);
+
+        if (success) {
             if (frame.isValid()) {
                 m_outputQueue->push(std::move(frame));
                 emit sigFrameDecoded();
-                frameCount++;
+                decodedCount++;
             }
         } else {
             if (m_decoder->isEOF()) {
-                LOG_INFO("VideoDecodeThread", "解码完成");
+                LOG_INFO("VideoDecodeThread", "视频解码器报 EOF，准备退出");
                 emit sigDecodeFinished();
                 break;
             }
-            QThread::msleep(1);
+            // 如果没解出来包，稍微歇 2ms，避免打满 CPU
+            QThread::msleep(2);
+        }
+
+        // 每秒诊断输出
+        if (debugTimer.elapsed() >= 1000) {
+            LOG_INFO("VideoDecodeThread",
+                     QString("[解码诊断] 本秒解码帧数: %1, 缓存队列大小: %2")
+                         .arg(decodedCount).arg(m_outputQueue->size()));
+            decodedCount = 0;
+            debugTimer.restart();
         }
     }
 

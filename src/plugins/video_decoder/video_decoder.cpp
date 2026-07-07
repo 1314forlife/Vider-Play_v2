@@ -130,17 +130,61 @@ bool VideoDecoder::decodeFrame(FrameData &frame)
     if (!m_isOpen || m_eof) return false;
     if (!m_packetQueue) return false;
 
+    //【步骤 1】：先尝试从解码器内部“榨取”已经解码好的、或者积压的帧
+    int ret = avcodec_receive_frame(m_codecCtx, m_frame);
+    if (ret == 0) {
+        // 成功拿到了一帧！
+        int64_t pts = m_frame->pts;
+        if (pts != AV_NOPTS_VALUE) {
+            pts = rescalePts(pts, m_timeBase, {1, 1000000});
+        }
+        frame = FrameData::fromAVFrame(m_frame, pts);
+        m_frame = av_frame_alloc(); // 重新分配给下一帧用
+        return true;
+    }
+    else if (ret == AVERROR_EOF) {
+        m_eof = true;
+        return false;
+    }
+    // 如果返回 EAGAIN，说明解码器空了，需要喂新数据，继续往下走
+
+    //【步骤 2】：解码器空了，从外部队列里拿一个新包喂给它
     Packet packet;
     if (!m_packetQueue->tryPop(packet)) {
-        return false;
+        return false; // 队列暂时没包，通常是因为 Demux 控流，等会再试
     }
 
     if (!packet.isValid()) {
         return false;
     }
 
-    if (decodePacket(packet.get(), frame)) {
+    // 将包送入解码器
+    ret = avcodec_send_packet(m_codecCtx, packet.get());
+    if (ret < 0) {
+        // 送入失败，可能是不可逆的错误
+        LOG_ERROR("VideoDecoder", QString("avcodec_send_packet 失败, 错误码: %1").arg(ret));
+        return false;
+    }
+
+    //【步骤 3】：喂完新包后，立刻再次尝试获取一次帧
+    ret = avcodec_receive_frame(m_codecCtx, m_frame);
+    if (ret == 0) {
+        int64_t pts = m_frame->pts;
+        if (pts != AV_NOPTS_VALUE) {
+            pts = rescalePts(pts, m_timeBase, {1, 1000000});
+        }
+        frame = FrameData::fromAVFrame(m_frame, pts);
+        m_frame = av_frame_alloc();
         return true;
+    }
+
+    if (ret == AVERROR(EAGAIN)) {
+        // 这是完全正常的！说明这一包是 B 帧或者依赖帧，送进去了但还凑不齐一幅画
+        // 返回 false 让线程下次循环继续来喂包，千万不要认为出错而退出线程！
+        return false;
+    }
+    else if (ret == AVERROR_EOF) {
+        m_eof = true;
     }
 
     return false;
