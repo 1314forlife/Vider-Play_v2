@@ -20,7 +20,10 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libswscale/swscale.h>
+<<<<<<< HEAD
 #include <libswresample/swresample.h>
+=======
+>>>>>>> 18e46d31c3f242c7d09be801890555283746b72f
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
 

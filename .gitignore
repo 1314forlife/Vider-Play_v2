@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Qt 编译生成
 *.pro.user
 *.pro.user.*
@@ -24,3 +25,22 @@ temp_*.mp4
 # IDE 配置
 *.user
 .qtcreator/
+=======
+# 忽略所有大文件
+3rdparty/
+*.lib
+*.dll
+*.a
+*.so
+*.dylib
+*.exe
+
+# 忽略编译产物
+build/
+bin/
+debug/
+release/
+*.user
+*.pro.user
+.qmake.stash
+>>>>>>> 18e46d31c3f242c7d09be801890555283746b72f
