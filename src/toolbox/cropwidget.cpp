@@ -64,6 +64,7 @@ void CropWidget::initUI()
     m_inputEdit->setPlaceholderText("请选择要裁剪的视频文件");
     fileLayout->addWidget(m_inputEdit, 0, 1);
     QPushButton *inputBtn = new QPushButton("浏览");
+    inputBtn->setStyleSheet("color: black;");
     connect(inputBtn, &QPushButton::clicked, this, &CropWidget::selectInputFile);
     fileLayout->addWidget(inputBtn, 0, 2);
 
@@ -72,6 +73,7 @@ void CropWidget::initUI()
     m_outputEdit->setPlaceholderText("裁剪后的视频保存位置");
     fileLayout->addWidget(m_outputEdit, 1, 1);
     QPushButton *outputBtn = new QPushButton("浏览");
+    outputBtn->setStyleSheet("color: black;");
     connect(outputBtn, &QPushButton::clicked, this, &CropWidget::selectOutputFile);
     fileLayout->addWidget(outputBtn, 1, 2);
 

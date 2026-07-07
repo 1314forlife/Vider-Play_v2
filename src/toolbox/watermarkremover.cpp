@@ -61,6 +61,7 @@ void WatermarkRemover::initUI()
     m_inputEdit->setPlaceholderText("请选择要去水印的视频文件");
     fileLayout->addWidget(m_inputEdit, 0, 1);
     QPushButton *inputBtn = new QPushButton("浏览");
+    inputBtn->setStyleSheet("color: black;");
     connect(inputBtn, &QPushButton::clicked, this, &WatermarkRemover::selectInputFile);
     fileLayout->addWidget(inputBtn, 0, 2);
 
@@ -69,6 +70,7 @@ void WatermarkRemover::initUI()
     m_outputEdit->setPlaceholderText("去水印后的视频保存位置");
     fileLayout->addWidget(m_outputEdit, 1, 1);
     QPushButton *outputBtn = new QPushButton("浏览");
+    outputBtn->setStyleSheet("color: black;");
     connect(outputBtn, &QPushButton::clicked, this, &WatermarkRemover::selectOutputFile);
     fileLayout->addWidget(outputBtn, 1, 2);
 
@@ -416,7 +418,6 @@ void WatermarkRemover::startRemove()
         return;
     }
 
-    // 检查水印区域是否有效
     int x = m_xSpin->value();
     int y = m_ySpin->value();
     int w = m_wSpin->value();
@@ -431,7 +432,6 @@ void WatermarkRemover::startRemove()
         return;
     }
 
-    // 确认开始
     int ret = QMessageBox::question(this, "确认",
                                     QString("将去除水印区域：X=%1 Y=%2 宽=%3 高=%4\n\n"
                                             "去水印需要重新编码，耗时较长，是否继续？")
@@ -450,14 +450,14 @@ void WatermarkRemover::startRemove()
     QString args = buildFFmpegArgs();
     QStringList argList = args.split(" ", Qt::SkipEmptyParts);
 
+    // ✅ 异步启动，不阻塞 UI
     m_ffmpegProcess->start("ffmpeg", argList);
 
-    if (!m_ffmpegProcess->waitForStarted(3000)) {
-        QMessageBox::critical(this, "错误", "FFmpeg 启动失败！");
-        m_startBtn->setEnabled(true);
-        m_progressBar->setVisible(false);
-        m_statusLabel->setText("❌ 去水印启动失败");
-    }
+    // ✅ 移除 waitForStarted，让 QProcess 在后台运行
+    // 如果启动失败，会通过 errorOccurred 信号通知
+
+    // ✅ 给用户提示
+    m_statusLabel->setText("⏳ 去水印已启动，请等待完成...");
 }
 
 QString WatermarkRemover::buildFFmpegArgs()
@@ -505,7 +505,6 @@ void WatermarkRemover::readProgress()
         int seconds = match.captured(3).toInt();
         int currentTime = hours * 3600 + minutes * 60 + seconds;
 
-        // 预览模式只处理10秒
         int total = m_previewCheck->isChecked() ? 10 : (int)m_duration;
 
         if (total > 0) {
@@ -517,6 +516,9 @@ void WatermarkRemover::readProgress()
             m_statusLabel->setText(QString("⏳ 去水印中... %1%  剩余: %2秒")
                                        .arg(progress)
                                        .arg(remaining));
+
+            // ✅ 强制刷新 UI
+            QCoreApplication::processEvents();
         }
     }
 }

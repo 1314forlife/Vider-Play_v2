@@ -58,8 +58,7 @@ void VideoToolBox::initUI()
 
     m_toolList->addItem("🎬 视频转码");   // 索引 0
     m_toolList->addItem("🚫 去水印");     // 索引 1
-    m_toolList->addItem("✂️ 视频裁剪");   // 索引 2
-    m_toolList->addItem("🔧 画质修复");   // 索引 3
+    m_toolList->addItem("✂️ 视频裁剪");   // 索引 2   // 索引 3
     m_toolList->addItem("🔄 格式转换");   // 索引 4
     m_toolList->addItem("📦 视频压缩");   // 索引 5
     m_toolList->addItem("🎵 音频提取");   // 索引 6
@@ -144,15 +143,6 @@ void VideoToolBox::initUI()
 
     m_stackWidget->addWidget(cropScrollArea);  // 索引2
 
-    // 索引3：画质修复（占位）
-    QWidget *repairPage = new QWidget(rightPanel);
-    repairPage->setStyleSheet("background-color: white; border-radius: 8px;");
-    QVBoxLayout *repairLayout = new QVBoxLayout(repairPage);
-    QLabel *repairLabel = new QLabel("🔧 画质修复\n\n功能开发中...", repairPage);
-    repairLabel->setAlignment(Qt::AlignCenter);
-    repairLabel->setStyleSheet("color: #7F8C8D; font-size: 16px;");
-    repairLayout->addWidget(repairLabel);
-    m_stackWidget->addWidget(repairPage);
 
     // 索引4：格式转换（占位）
     QScrollArea *convertScrollArea = new QScrollArea(rightPanel);
