@@ -16,13 +16,13 @@ signals:
     void playerClicked();
     void downloadClicked();
     void themeClicked();
-    void settingsClicked();
+    void toolboxClicked();
 
 private:
     QPushButton* m_playerBtn = nullptr;
     QPushButton* m_downloadBtn = nullptr;
     QPushButton* m_themeBtn = nullptr;
-    QPushButton* m_settingsBtn = nullptr;
+    QPushButton* m_toolboxBtn = nullptr;
 };
 
 #endif

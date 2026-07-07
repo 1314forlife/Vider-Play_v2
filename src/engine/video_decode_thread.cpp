@@ -51,7 +51,7 @@ void VideoDecodeThread::run() {
 
     LOG_INFO("VideoDecodeThread", "解码线程开始运行");
 
-    // 🔥 限速相关变量
+    //  限速相关变量
     QElapsedTimer fpsTimer;
     fpsTimer.start();
     int frameCount = 0;
@@ -64,7 +64,7 @@ void VideoDecodeThread::run() {
             continue;
         }
 
-        // 🔥 限速
+        //  限速
         if (fpsTimer.elapsed() >= 1000) {
             if (frameCount > maxFramesPerSecond) {
                 int waitMs = 1000 / targetFps;
@@ -74,7 +74,7 @@ void VideoDecodeThread::run() {
             fpsTimer.restart();
         }
 
-        // 🔥 队列限制
+        // 队列限制
         if (m_outputQueue->size() >= 5) {
             QThread::msleep(5);
             continue;

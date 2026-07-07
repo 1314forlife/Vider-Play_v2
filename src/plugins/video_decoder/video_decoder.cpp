@@ -2,7 +2,7 @@
 #include "src/common/logger.h"
 
 extern "C" {
-#include <libavformat/avformat.h>  // 🔥 添加这行
+#include <libavformat/avformat.h>  //  添加这行
 }
 
 VideoDecoder::VideoDecoder(QObject* parent) : DecoderBase(parent) {
@@ -86,10 +86,10 @@ bool VideoDecoder::decodePacket(AVPacket* packet, FrameData& frame) {
         pts = rescalePts(pts, m_timeBase, {1, 1000000});
     }
 
-    // 🔥 移动：FrameData 接管 m_frame 的所有权
+    //  移动：FrameData 接管 m_frame 的所有权
     frame = FrameData::fromAVFrame(m_frame, pts);
 
-    // 🔥 重新分配新的 AVFrame 给下一帧使用
+    // 重新分配新的 AVFrame 给下一帧使用
     m_frame = av_frame_alloc();
 
     return true;

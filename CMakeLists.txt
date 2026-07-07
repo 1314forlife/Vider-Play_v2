@@ -124,7 +124,23 @@ qt6_add_executable(VideoPlayer ${SOURCES} ${HEADERS} ${RESOURCES}
     src/network/LicenseClient.h
     src/network/LicenseClient.cpp
     src/ui/LoginDialog.h
-    src/ui/LoginDialog.cpp)
+    src/ui/LoginDialog.cpp
+    src/toolbox/videotoolbox.h
+    src/toolbox/videotoolbox.cpp
+    src/toolbox/transcodewidget.h
+    src/toolbox/transcodewidget.cpp
+    src/toolbox/cropwidget.h
+    src/toolbox/cropwidget.cpp
+    src/toolbox/audioextractwidget.h
+    src/toolbox/audioextractwidget.cpp
+    src/toolbox/screenshotwidget.h
+    src/toolbox/screenshotwidget.cpp
+    src/toolbox/formatconvertwidget.h
+    src/toolbox/formatconvertwidget.cpp
+    src/toolbox/compresswidget.h
+    src/toolbox/compresswidget.cpp
+    src/toolbox/watermarkremover.h
+    src/toolbox/watermarkremover.cpp)
 
 
 

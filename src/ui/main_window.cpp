@@ -11,6 +11,8 @@
 #include "src/network/LicenseClient.h"
 #include "src/ui/LoginDialog.h"
 #include "network_dialog.h"
+#include "toolbox/videotoolbox.h"
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFileDialog>
@@ -92,7 +94,7 @@ void MainWindow::setupUI()
     m_centralStack->addWidget(createPlayerPage());   // 索引0: 播放页面
     m_centralStack->addWidget(createDownloadPage()); // 索引1: 下载页面
     m_centralStack->addWidget(createThemePage());    // 索引2: 主题页面
-    m_centralStack->addWidget(createSettingsPage()); // 索引3: 设置页面
+    m_centralStack->addWidget(createToolboxPage()); // 索引3: 设置页面
     contentLayout->addWidget(m_centralStack, 1);
 
     mainLayout->addWidget(contentWidget, 1);
@@ -109,7 +111,7 @@ void MainWindow::setupConnections()
     connect(m_navigation, &NavigationWidget::playerClicked, this, &MainWindow::switchToPlayer);
     connect(m_navigation, &NavigationWidget::downloadClicked, this, &MainWindow::switchToDownload);
     connect(m_navigation, &NavigationWidget::themeClicked, this, &MainWindow::switchToTheme);
-    connect(m_navigation, &NavigationWidget::settingsClicked, this, &MainWindow::switchToSettings);
+    connect(m_navigation, &NavigationWidget::toolboxClicked, this, &MainWindow::switchToToolbox);
 }
 
 QWidget* MainWindow::createPlayerPage()
@@ -244,16 +246,25 @@ QWidget* MainWindow::createThemePage()
     return page;
 }
 
-QWidget* MainWindow::createSettingsPage()
+QWidget* MainWindow::createToolboxPage()
 {
     QWidget* page = new QWidget(this);
     QVBoxLayout* layout = new QVBoxLayout(page);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
 
-    QLabel* label = new QLabel("⚙️ 设置\n\n开发中，敬请期待...", page);
-    label->setAlignment(Qt::AlignCenter);
-    label->setStyleSheet("color: #7EC8E3; font-size: 16px;");
+    // 使用真正的 VideoToolBox 类
+    VideoToolBox* toolBox = new VideoToolBox(page);
+    toolBox->setEmbedMode(true);
+    layout->addWidget(toolBox);
 
-    layout->addWidget(label);
+    // 连接信号：处理完成后自动加载到播放器
+    connect(toolBox, &VideoToolBox::videoProcessed,
+            this, [this](const QString& outputPath) {
+                playLocalFile(outputPath);
+                switchToPlayer();
+            });
+
     return page;
 }
 
@@ -308,7 +319,7 @@ void MainWindow::switchToTheme()
     }
 }
 
-void MainWindow::switchToSettings()
+void MainWindow::switchToToolbox()
 {
     m_centralStack->setCurrentIndex(3);
     m_navigation->setActiveButton(3);

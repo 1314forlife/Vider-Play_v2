@@ -19,6 +19,7 @@ class ProgressBar;
 class TitleBar;
 class NavigationWidget;
 class FurinaLottie;
+class VideoToolBox;
 enum class PlaybackState;
 struct StreamInfo;
 class MainWindow : public QMainWindow {
@@ -52,7 +53,7 @@ private slots:
     void switchToPlayer();
     void switchToDownload();
     void switchToTheme();
-    void switchToSettings();
+    void switchToToolbox();
 
     // 窗口控制
     void toggleMaximize();
@@ -85,7 +86,7 @@ private:
     QWidget* createPlayerPage();
     QWidget* createDownloadPage();
     QWidget* createThemePage();
-    QWidget* createSettingsPage();
+    QWidget* createToolboxPage();
 
     DownloadWidget* m_downloadWidget = nullptr;
 

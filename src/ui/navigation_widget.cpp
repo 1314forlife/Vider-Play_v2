@@ -28,9 +28,10 @@ NavigationWidget::NavigationWidget(QWidget* parent) : QWidget(parent)
     m_themeBtn->setCheckable(true);
 
     // 设置按钮
-    m_settingsBtn = new QPushButton("⚙️\n设置", this);
-    m_settingsBtn->setObjectName("navBtn");
-    m_settingsBtn->setCheckable(true);
+    m_toolboxBtn = new QPushButton("🔧\n工具箱", this);  // ← 改这里
+    m_toolboxBtn->setObjectName("navBtn");               // ← 改这里
+    m_toolboxBtn->setCheckable(true);                    // ← 改这里
+    m_toolboxBtn->setFixedSize(60, 60);                  // ← 改这里
 
     layout->addWidget(m_playerBtn);
     layout->addSpacing(20);
@@ -38,14 +39,14 @@ NavigationWidget::NavigationWidget(QWidget* parent) : QWidget(parent)
     layout->addSpacing(20);
     layout->addWidget(m_themeBtn);
     layout->addSpacing(20);
-    layout->addWidget(m_settingsBtn);
+    layout->addWidget(m_toolboxBtn);
     layout->addStretch();
 
     // 连接信号
     connect(m_playerBtn, &QPushButton::clicked, this, &NavigationWidget::playerClicked);
     connect(m_downloadBtn, &QPushButton::clicked, this, &NavigationWidget::downloadClicked);
     connect(m_themeBtn, &QPushButton::clicked, this, &NavigationWidget::themeClicked);
-    connect(m_settingsBtn, &QPushButton::clicked, this, &NavigationWidget::settingsClicked);
+    connect(m_toolboxBtn, &QPushButton::clicked, this, &NavigationWidget::toolboxClicked);
 }
 
 void NavigationWidget::setActiveButton(int index)
@@ -53,5 +54,5 @@ void NavigationWidget::setActiveButton(int index)
     m_playerBtn->setChecked(index == 0);
     m_downloadBtn->setChecked(index == 1);
     m_themeBtn->setChecked(index == 2);
-    m_settingsBtn->setChecked(index == 3);
+    m_toolboxBtn->setChecked(index == 3);
 }
