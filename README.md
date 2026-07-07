@@ -55,8 +55,8 @@
 
 ### 1. 克隆项目
 ```bash
-git clone https://github.com/yourname/furina-player.git
-cd furina-player
+https://github.com/1314forlife/Vider-Play_v2.git
+cd 
 ```
 
 ### 2. 准备第三方库
