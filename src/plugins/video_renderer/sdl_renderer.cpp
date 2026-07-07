@@ -32,8 +32,6 @@ bool SDLRenderer::init(void* windowId, int videoWidth, int videoHeight) {
     }
     m_window = window;
 
-    SDL_GetWindowSize((SDL_Window*)m_window, &m_displayWidth, &m_displayHeight);
-
     // 尝试不同渲染驱动
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
     m_renderer = SDL_CreateRenderer((SDL_Window*)m_window, -1, SDL_RENDERER_ACCELERATED);
@@ -53,6 +51,11 @@ bool SDLRenderer::init(void* windowId, int videoWidth, int videoHeight) {
         LOG_WARN("SDLRenderer", "使用软件渲染");
     }
 
+    // 获取真实的渲染输出分辨率（完美兼容高分屏 DPI 缩放带来的左上角/黑边偏移）
+    SDL_GetRendererOutputSize(m_renderer, &m_displayWidth, &m_displayHeight);
+    m_lastWidth = m_displayWidth;
+    m_lastHeight = m_displayHeight;
+
     // 打印渲染器信息
     SDL_RendererInfo info;
     SDL_GetRendererInfo(m_renderer, &info);
@@ -60,18 +63,41 @@ bool SDLRenderer::init(void* windowId, int videoWidth, int videoHeight) {
                                 .arg(info.name)
                                 .arg((info.flags & SDL_RENDERER_ACCELERATED) ? "是" : "否"));
 
-    // 关闭垂直同步（使用旧版 API）
+    // 关闭垂直同步
     SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
-
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+    // 开启双线性过滤，让缩放后的视频边缘和画质更平滑
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 
     createTexture();
+    updateDestRect();
 
     m_initialized = true;
-    QString infoMsg = QString("SDLRenderer初始化成功: %1x%2").arg(videoWidth).arg(videoHeight);
+    QString infoMsg = QString("SDLRenderer初始化成功: %1x%2, 渲染大小: %3x%4")
+                          .arg(videoWidth).arg(videoHeight).arg(m_displayWidth).arg(m_displayHeight);
     LOG_INFO("SDLRenderer", infoMsg);
 
     return true;
+}
+
+void SDLRenderer::updateDestRect() {
+    if (m_displayWidth <= 0 || m_displayHeight <= 0 || m_videoWidth <= 0 || m_videoHeight <= 0) {
+        return;
+    }
+
+    float videoAspect = (float)m_videoWidth / m_videoHeight;
+    float displayAspect = (float)m_displayWidth / m_displayHeight;
+
+    if (displayAspect > videoAspect) {
+        m_destRect.h = m_displayHeight;
+        m_destRect.w = (int)(m_displayHeight * videoAspect);
+        m_destRect.x = (m_displayWidth - m_destRect.w) / 2;
+        m_destRect.y = 0;
+    } else {
+        m_destRect.w = m_displayWidth;
+        m_destRect.h = (int)(m_displayWidth / videoAspect);
+        m_destRect.x = 0;
+        m_destRect.y = (m_displayHeight - m_destRect.h) / 2;
+    }
 }
 
 bool SDLRenderer::renderYUV(uint8_t* y, int yLinesize,
@@ -110,34 +136,16 @@ bool SDLRenderer::renderYUV(uint8_t* y, int yLinesize,
         }
     }
 
-    // 🔥 优化：使用缓存的目标矩形，只在窗口大小改变时重新计算
-    static SDL_Rect cachedDestRect;
-    static int lastWidth = 0;
-    static int lastHeight = 0;
-
-    if (m_displayWidth != lastWidth || m_displayHeight != lastHeight) {
-        // 只在窗口大小改变时重新计算
-        float videoAspect = (float)m_videoWidth / m_videoHeight;
-        float displayAspect = (float)m_displayWidth / m_displayHeight;
-
-        if (displayAspect > videoAspect) {
-            cachedDestRect.h = m_displayHeight;
-            cachedDestRect.w = (int)(m_displayHeight * videoAspect);
-            cachedDestRect.x = (m_displayWidth - cachedDestRect.w) / 2;
-            cachedDestRect.y = 0;
-        } else {
-            cachedDestRect.w = m_displayWidth;
-            cachedDestRect.h = (int)(m_displayWidth / videoAspect);
-            cachedDestRect.x = 0;
-            cachedDestRect.y = (m_displayHeight - cachedDestRect.h) / 2;
-        }
-
-        lastWidth = m_displayWidth;
-        lastHeight = m_displayHeight;
+    // 动态检查外部是否通过 resize 改变了分辨率，双重保险
+    if (m_displayWidth != m_lastWidth || m_displayHeight != m_lastHeight) {
+        updateDestRect();
+        m_lastWidth = m_displayWidth;
+        m_lastHeight = m_displayHeight;
     }
 
+    // 每一帧都要清屏，防止缩小时周围旧的缓存画面残留在黑边区域
     SDL_RenderClear(m_renderer);
-    SDL_RenderCopy(m_renderer, m_texture, nullptr, &cachedDestRect);
+    SDL_RenderCopy(m_renderer, m_texture, nullptr, &m_destRect);
     SDL_RenderPresent(m_renderer);
 
     return true;
@@ -146,12 +154,22 @@ bool SDLRenderer::renderYUV(uint8_t* y, int yLinesize,
 void SDLRenderer::resize(int width, int height) {
     if (!m_initialized) return;
 
-    m_displayWidth = width;
-    m_displayHeight = height;
+    // 绝大多数情况下 Qt 传过来的 width/height 是逻辑像素
+    // 我们直接向 SDL 询问当前对应窗口在底层的真实硬件像素大小
+    SDL_GetRendererOutputSize(m_renderer, &m_displayWidth, &m_displayHeight);
 
-    LOG_DEBUG("SDLRenderer", QString("窗口大小改变: %1x%2").arg(width).arg(height));
-    // 🔥 直接渲染最后一帧（不通过 renderYUV，避免递归调用 resize）
+    // 更新目标视口坐标
+    updateDestRect();
 
+    LOG_DEBUG("SDLRenderer", QString("窗口大小改变，逻辑: %1x%2, 硬件渲染尺寸: %3x%4")
+                                 .arg(width).arg(height).arg(m_displayWidth).arg(m_displayHeight));
+
+    // 如果当前有最后一帧的缓存，立刻重绘，防止放大缩小过程中出现短暂的黑屏或画面闪烁
+    if (m_lastY && m_lastU && m_lastV && m_texture) {
+        SDL_RenderClear(m_renderer);
+        SDL_RenderCopy(m_renderer, m_texture, nullptr, &m_destRect);
+        SDL_RenderPresent(m_renderer);
+    }
 }
 
 void SDLRenderer::shutdown() {
@@ -171,6 +189,9 @@ void SDLRenderer::shutdown() {
     m_lastY = nullptr;
     m_lastU = nullptr;
     m_lastV = nullptr;
+    m_destRect = {0, 0, 0, 0};
+    m_lastWidth = 0;
+    m_lastHeight = 0;
 }
 
 void SDLRenderer::createTexture() {
@@ -209,8 +230,8 @@ bool SDLRenderer::ensureContext() {
     }
 
     if (needRebuild) {
-        // 🔥 移除 SDL_RenderSetLogicalSize，因为现在手动计算显示区域
-        // SDL_RenderSetLogicalSize(m_renderer, m_videoWidth, m_videoHeight);
+        SDL_GetRendererOutputSize(m_renderer, &m_displayWidth, &m_displayHeight);
+        updateDestRect();
 
         if (m_texture) {
             SDL_DestroyTexture(m_texture);
@@ -218,32 +239,14 @@ bool SDLRenderer::ensureContext() {
         }
         createTexture();
 
-        // 🔥 重新渲染最后一帧（使用手动计算的位置）
         if (m_lastY && m_lastU && m_lastV && m_texture) {
             SDL_UpdateYUVTexture(m_texture, nullptr,
                                  m_lastY, m_lastYLinesize,
                                  m_lastU, m_lastULinesize,
                                  m_lastV, m_lastVLinesize);
 
-            // 手动计算显示区域
-            SDL_Rect destRect;
-            float videoAspect = (float)m_videoWidth / m_videoHeight;
-            float displayAspect = (float)m_displayWidth / m_displayHeight;
-
-            if (displayAspect > videoAspect) {
-                destRect.h = m_displayHeight;
-                destRect.w = (int)(m_displayHeight * videoAspect);
-                destRect.x = (m_displayWidth - destRect.w) / 2;
-                destRect.y = 0;
-            } else {
-                destRect.w = m_displayWidth;
-                destRect.h = (int)(m_displayWidth / videoAspect);
-                destRect.x = 0;
-                destRect.y = (m_displayHeight - destRect.h) / 2;
-            }
-
             SDL_RenderClear(m_renderer);
-            SDL_RenderCopy(m_renderer, m_texture, nullptr, &destRect);
+            SDL_RenderCopy(m_renderer, m_texture, nullptr, &m_destRect);
             SDL_RenderPresent(m_renderer);
         }
     }

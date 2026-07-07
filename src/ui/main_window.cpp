@@ -450,9 +450,11 @@ void MainWindow::playLocalFile(const QString& filePath)
     m_engine->setRenderWindow(winId);
 
     if (m_engine->openFile(filePath)) {
-        int videoWidth = m_engine->width();
-        int videoHeight = m_engine->height();
-        resize(videoWidth + 16, videoHeight + 80);
+        // ✅ 不调整窗口大小，保持当前窗口尺寸
+        // 视频画面会自动适应 VideoWidget 的大小
+        // int videoWidth = m_engine->width();
+        // int videoHeight = m_engine->height();
+        // resize(videoWidth + 16, videoHeight + 80);  // ← 注释掉这行
 
         m_progressBar->setDuration(m_engine->duration());
         m_progressBar->setEnabled(true);
@@ -635,7 +637,12 @@ void MainWindow::onFullscreenChanged(bool fullscreen)
         m_titleBar->show();
         m_navigation->show();
         showNormal();
-        setGeometry(m_normalGeometry);
+        // ✅ 延迟恢复几何位置，避免冲突
+        QTimer::singleShot(50, this, [this]() {
+            if (!m_normalGeometry.isEmpty()) {
+                setGeometry(m_normalGeometry);
+            }
+        });
         if (m_furinaLottie) {
             m_furinaLottie->setOpacity(0.3);
         }
@@ -649,13 +656,6 @@ void MainWindow::onVolumeChanged(int volume)
     }
 }
 
-void MainWindow::resizeEvent(QResizeEvent* event)
-{
-    QMainWindow::resizeEvent(event);
-    if (m_engine && m_videoWidget) {
-        m_engine->setRenderWindowSize(m_videoWidget->width(), m_videoWidget->height());
-    }
-}
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
@@ -673,6 +673,22 @@ void MainWindow::closeEvent(QCloseEvent* event)
             m_engine->stop();
         });
     }
+}
+
+void MainWindow::resizeEvent(QResizeEvent* event)
+{
+    QMainWindow::resizeEvent(event);
+
+    static bool isResizing = false;
+    if (isResizing) return;
+    isResizing = true;
+
+    // ✅ 只有窗口真正改变时才更新渲染器
+    if (m_engine && m_videoWidget && event->size() != event->oldSize()) {
+        m_engine->setRenderWindowSize(m_videoWidget->width(), m_videoWidget->height());
+    }
+
+    isResizing = false;
 }
 
 void MainWindow::onLicenseReady(const QString& licenseKey)

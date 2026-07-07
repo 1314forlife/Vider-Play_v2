@@ -42,6 +42,11 @@ private:
     int m_lastYLinesize = 0;
     int m_lastULinesize = 0;
     int m_lastVLinesize = 0;
+
+    void updateDestRect();
+    SDL_Rect m_destRect = {0, 0, 0, 0};
+    int m_lastWidth = 0;
+    int m_lastHeight = 0;
 };
 
 #endif
